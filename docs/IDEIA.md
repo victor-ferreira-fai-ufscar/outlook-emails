@@ -2,7 +2,9 @@
 
 ## Tech Stack
 
-- <https://github.com/astral-sh/uv>
+- Back-end:
+  - <https://github.com/astral-sh/uv>
+  - <https://fastapi.tiangolo.com/>
 
 ## Minha escrita/rascunho
 
