@@ -14,7 +14,7 @@ from starlette.middleware.sessions import SessionMiddleware
 load_dotenv()
 
 GRAPH_BASE_URL = "https://graph.microsoft.com/v1.0"
-GRAPH_SCOPES = ["User.Read"]
+GRAPH_SCOPES = ["User.Read", "Mail.Read"]
 
 client_id = os.getenv("MS_CLIENT_ID", "")
 client_secret = os.getenv("MS_CLIENT_SECRET", "")
@@ -57,6 +57,29 @@ def _fetch_outlook_profile(access_token: str) -> dict[str, Any]:
         raise HTTPException(status_code=response.status_code, detail=response.text)
 
     return response.json()
+
+
+def _fetch_latest_sent_email(access_token: str) -> dict[str, Any]:
+    response = requests.get(
+        f"{GRAPH_BASE_URL}/me/mailFolders/SentItems/messages",
+        headers={"Authorization": f"Bearer {access_token}"},
+        params={
+            "$top": "1",
+            "$orderby": "sentDateTime desc",
+            "$select": "id,subject,from,toRecipients,ccRecipients,bccRecipients,createdDateTime,sentDateTime,receivedDateTime,bodyPreview,conversationId,importance,webLink,isRead",
+        },
+        timeout=30,
+    )
+
+    if response.status_code >= 400:
+        raise HTTPException(status_code=response.status_code, detail=response.text)
+
+    payload = response.json()
+    messages = payload.get("value", [])
+    if not messages:
+        return {"message": "No sent emails found."}
+
+    return messages[0]
 
 
 def _save_profile_json(profile_data: dict[str, Any]) -> str:
@@ -156,3 +179,14 @@ def export_profile_json(request: Request) -> dict[str, str]:
     json_path = _save_profile_json(profile)
 
     return {"message": "Profile exported successfully.", "json_path": json_path}
+
+
+@app.get("/messages/sent/latest")
+def get_latest_sent_email(request: Request) -> dict[str, Any]:
+    access_token = request.session.get("access_token")
+    if not access_token:
+        raise HTTPException(
+            status_code=401, detail="Not authenticated. Open /auth/login first."
+        )
+
+    return _fetch_latest_sent_email(access_token)

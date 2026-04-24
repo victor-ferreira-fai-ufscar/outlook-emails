@@ -17,6 +17,7 @@ MVP para integrar uma conta Outlook com FastAPI, autenticar via Microsoft Graph 
 Permissoes minimas no Graph:
 
 - `User.Read`
+- `Mail.Read`
 
 ## Configuracao
 
@@ -64,6 +65,7 @@ Endpoints disponiveis:
 - `GET /auth/callback` processa callback do OAuth2
 - `GET /profile` consulta perfil atual
 - `GET /profile/export` exporta novo JSON do perfil
+- `GET /messages/sent/latest` retorna o ultimo e-mail enviado
 
 ## Estrutura
 
