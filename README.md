@@ -2,6 +2,8 @@
 
 MVP para integrar uma conta Outlook com FastAPI, autenticar via Microsoft Graph e gerar um JSON com os dados de perfil.
 
+No estado atual, o fluxo OAuth e token de acesso ficam persistidos localmente em arquivos na pasta `sessions/`.
+
 ## Stack
 
 - Python + FastAPI
@@ -66,6 +68,12 @@ Endpoints disponiveis:
 - `GET /profile` consulta perfil atual
 - `GET /profile/export` exporta novo JSON do perfil
 - `GET /messages/sent/latest` retorna o ultimo e-mail enviado
+
+## Persistencia local temporaria
+
+- `sessions/flow-<state>.json`: dados do auth flow durante login
+- `sessions/session-<uuid>.json`: token de acesso e metadados da sessao autenticada
+- `data/outlook-profile-*.json`: snapshots do perfil exportado
 
 ## Estrutura
 

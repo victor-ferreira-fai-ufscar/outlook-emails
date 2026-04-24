@@ -4,3 +4,4 @@ __pycache__/
 .env
 uv.lock
 data/*.json
+sessions/*.json
