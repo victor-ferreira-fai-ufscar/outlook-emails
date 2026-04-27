@@ -63,6 +63,27 @@ def test_root_returns_200():
     assert "next_step" in body
 
 
+def test_swagger_docs_endpoint_is_available():
+    response = client.get("/docs")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "Swagger UI" in response.text
+
+
+def test_scalar_docs_endpoint_is_available_and_uses_openapi_json():
+    response = client.get("/scalar")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "/openapi.json" in response.text
+
+
+def test_openapi_json_endpoint_is_available():
+    response = client.get("/openapi.json")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/json")
+    assert response.json()["openapi"].startswith("3.")
+
+
 # ---------------------------------------------------------------------------
 # GET /auth/login
 # ---------------------------------------------------------------------------

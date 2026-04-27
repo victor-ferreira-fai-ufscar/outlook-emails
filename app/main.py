@@ -12,6 +12,7 @@ Estrutura:
 """
 
 from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
 
 from app.routes import health, auth, profile, messages, bot
 
@@ -20,6 +21,28 @@ app = FastAPI(
     description="MVP para integrar Outlook via Microsoft Graph e FastAPI",
     version="0.1.0",
 )
+
+
+@app.get("/scalar", include_in_schema=False)
+def scalar_docs() -> HTMLResponse:
+    openapi_url = app.openapi_url or "/openapi.json"
+    return HTMLResponse(
+        f"""
+<!doctype html>
+<html>
+  <head>
+    <meta charset=\"utf-8\" />
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
+    <title>{app.title} - Scalar</title>
+  </head>
+  <body>
+    <script id=\"api-reference\" data-url=\"{openapi_url}\"></script>
+    <script src=\"https://cdn.jsdelivr.net/npm/@scalar/api-reference\"></script>
+  </body>
+</html>
+""".strip()
+    )
+
 
 # Registrar rotas
 app.include_router(health.router)

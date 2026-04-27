@@ -80,6 +80,9 @@ uv run uvicorn app.main:app --reload
 Endpoints disponiveis:
 
 - `GET /` status da aplicacao
+- `GET /docs` documentacao Swagger UI
+- `GET /scalar` documentacao Scalar API Reference
+- `GET /openapi.json` schema OpenAPI consumido por Swagger/Scalar
 - `GET /auth/login` inicia OAuth2
 - `GET /auth/callback` processa callback do OAuth2
 - `GET /callback` alias de callback para compatibilidade em producao
