@@ -1,23 +1,23 @@
 ---
 name: tdd-workflow
-description: Test-Driven Development (TDD) workflow for implementing new features. Use this when starting any new feature, endpoint, or function. Follow the Red-Green-Refactor cycle: write failing tests first, implement minimal code to pass tests, then refactor for quality.
-argument-hint: "[feature description]"
+description: "Ciclo Test-Driven Development (TDD) para implementar novas features. Use quando começar qualquer feature, endpoint ou função. Siga o ciclo Vermelho-Verde-Refactor: escreva testes que falham primeiro, implemente código mínimo para passar nos testes, depois refatore para qualidade."
+argument-hint: "[descrição da feature]"
 user-invocable: true
 ---
 
-# Test-Driven Development (TDD) Workflow
+# Desenvolvimento Orientado a Testes (TDD)
 
-This skill guides you through implementing new features using Test-Driven Development. Instead of writing code first and tests later, TDD writes tests first to define expected behavior, then implements code to satisfy those tests.
+Este skill guia você através da implementação de novas features usando Test-Driven Development. Em vez de escrever código primeiro e testes depois, TDD escreve os testes primeiro para definir o comportamento esperado, depois implementa o código que satisfaz esses testes.
 
-## Why TDD?
+## Por Que TDD?
 
-- ✅ **Clearer Requirements**: Tests document what the code should do
-- ✅ **Higher Confidence**: Code is tested from day one
-- ✅ **Fewer Bugs**: Defects caught early, not in production
-- ✅ **Better Design**: Writing tests first often leads to better architecture
-- ✅ **Easier Refactoring**: Tests catch regressions immediately
+- ✅ **Requisitos Claros**: Testes documentam o que o código deve fazer
+- ✅ **Maior Confiança**: Código testado desde o primeiro dia
+- ✅ **Menos Bugs**: Defeitos encontrados cedo, não em produção
+- ✅ **Melhor Design**: Escrever testes primeiro leva a melhor arquitetura
+- ✅ **Refatoração Segura**: Testes detectam regressões imediatamente
 
-## The TDD Cycle: Red → Green → Refactor
+## O Ciclo TDD: Vermelho → Verde → Refactor
 
 ### 1️⃣ RED: Write Failing Tests
 

@@ -1,60 +1,133 @@
-# TDD Workflow Skill
+# Skill de Desenvolvimento Orientado a Testes (TDD)
 
-This skill teaches and guides you through Test-Driven Development (TDD) for implementing new features in the FastAPI Outlook integration project.
+Esta skill guia você através de Test-Driven Development (TDD) para implementar novas features no projeto de integração FastAPI com Outlook.
 
-## Files in this skill
+## 📁 Arquivos da Skill
 
-- **SKILL.md** - Complete TDD guide with Red-Green-Refactor cycle, best practices, and examples
-- **test-template.py** - Template for writing TDD tests with fixtures and test patterns
-- **implementation-template.py** - Template for implementing code after tests are written
-- **README.md** - This file
+| Arquivo                        | Propósito                                                  | Tempo  |
+| ------------------------------ | ---------------------------------------------------------- | ------ |
+| **SKILL.md**                   | Guia completo com ciclo Vermelho-Verde-Refactor e exemplos | 15 min |
+| **CHEATSHEET.md**              | Referência rápida para consulta diária                     | 3 min  |
+| **EXAMPLE.md**                 | Exemplo real passo-a-passo                                 | 10 min |
+| **INTEGRATION.md**             | Guia específico do projeto                                 | 10 min |
+| **test-template.py**           | Template para testes - copie e adapte                      | -      |
+| **implementation-template.py** | Template para implementação                                | -      |
 
-## Quick Start
+## 🚀 Escolha seu caminho
 
-### 1. Use the `/tdd-workflow` slash command in Copilot Chat
+### ⚡ Rápido (5 min)
+1. Leia [CHEATSHEET.md](./CHEATSHEET.md)
+2. Use `/tdd-workflow [descrição]` no Copilot Chat
+3. Siga a orientação através de Vermelho → Verde → Refactor
 
-Type `/tdd-workflow` followed by your feature description:
+### 📖 Aprender (15 min)
+1. Leia [CHEATSHEET.md](./CHEATSHEET.md)
+2. Siga [EXAMPLE.md](./EXAMPLE.md)
+3. Use templates para suas features
+
+### 🎓 Profundo (30 min)
+1. Leia [README.md](./README.md) (este arquivo)
+2. Leia [SKILL.md](./SKILL.md)
+3. Siga [EXAMPLE.md](./EXAMPLE.md)
+4. Consulte [INTEGRATION.md](./INTEGRATION.md)
+
+## 🚀 Início Rápido
+
+### 1. Use o comando `/tdd-workflow` no Copilot Chat
+
+Digite `/tdd-workflow` seguido da descrição da feature:
 
 ```
-/tdd-workflow I want to add a new /data/export endpoint that exports user data as JSON
+/tdd-workflow Quero adicionar um endpoint /data/export que exporta dados do usuário
 ```
 
-Copilot will guide you through the TDD workflow.
+O Copilot vai guiar você através do workflow TDD.
 
-### 2. Follow the Red-Green-Refactor Cycle
+### 2. Siga o Ciclo Vermelho-Verde-Refactor
 
-**RED:** Write failing tests
+**🔴 VERMELHO:** Escreva testes que falham
 ```bash
-cp .github/skills/tdd-workflow/test-template.py tests/test_your_feature.py
-# Edit test-template.py with your feature tests
-pytest tests/test_your_feature.py -v  # Should fail
+cp .github/skills/tdd-workflow/test-template.py tests/test_sua_feature.py
+# Edite com seus testes
+pytest tests/test_sua_feature.py -v  # Deve falhar
 ```
 
-**GREEN:** Implement minimal code
+**🟢 VERDE:** Implemente código mínimo
 ```bash
-cp .github/skills/tdd-workflow/implementation-template.py app/routes/your_feature.py
-# Edit implementation-template.py to make tests pass
-pytest tests/test_your_feature.py -v  # Should pass
+cp .github/skills/tdd-workflow/implementation-template.py app/routes/sua_feature.py
+# Edite para passar nos testes
+pytest tests/test_sua_feature.py -v  # Deve passar
 ```
 
-**REFACTOR:** Clean up code
+**🔵 REFACTOR:** Limpe o código
 ```bash
-# Improve code quality, names, comments
-pytest tests/ -v  # Ensure nothing broke
+# Melhore qualidade, nomes, comentários
+pytest tests/ -v  # Certifique-se que nada quebrou
 ```
 
-### 3. Run all tests before committing
+## 📊 Conceitos Principais
+
+### O Ciclo TDD
+
+1. **🔴 VERMELHO**: Escreva testes que descrevem a feature → testes falham
+2. **🟢 VERDE**: Escreva código mínimo para passar nos testes → testes passam
+3. **🔵 REFACTOR**: Melhore qualidade do código → testes ainda passam
+
+Isso garante:
+- ✅ Código funciona como esperado (testes provam)
+- ✅ Sem over-engineering (escreva só o necessário)
+- ✅ Código limpo e mantível (refatorado ao final)
+
+### Estrutura de Teste
+
+```python
+# Setup (arranjo)
+session_id = authenticated_session
+
+# Action (ação)
+response = client.get(
+    "/endpoint",
+    cookies={"local_session_id": session_id}
+)
+
+# Verification (verificação)
+assert response.status_code == 200
+```
+
+## 📋 Comandos Úteis
 
 ```bash
-# Run full test suite
+# Suite completa
 pytest tests/ -v
 
-# With coverage
+# Com cobertura
 pytest --cov=app tests/
 
-# Specific test file
-pytest tests/test_your_feature.py -v
+# Arquivo específico
+pytest tests/test_sua_feature.py -v
+
+# Parar no primeiro erro
+pytest -x
 ```
+
+## 🎓 Recursos
+
+- [Exemplo Real Completo](./EXAMPLE.md)
+- [Guia do Projeto](./INTEGRATION.md)
+- [Referência Rápida](./CHEATSHEET.md)
+- [Guia Completo](./SKILL.md)
+
+## ✨ Próximos Passos
+
+Escolha uma:
+1. **Teste agora**: `/tdd-workflow [sua feature]` no Copilot Chat
+2. **Aprenda vendo**: Siga [EXAMPLE.md](./EXAMPLE.md)
+3. **Copie template**: `cp test-template.py tests/test_xxx.py`
+4. **Leia guia**: Abra [SKILL.md](./SKILL.md)
+
+---
+
+**Lembre-se: Testes escritos primeiro = código que você pode confiar! 🚀**
 
 ## Key Concepts
 

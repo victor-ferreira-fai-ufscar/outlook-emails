@@ -270,6 +270,121 @@ def _persist_data(data: dict):
 
 ---
 
+## ❌ Anti-Patterns TDD: O Que NÃO Fazer
+
+### Anti-Pattern 1: Testar Implementação, Não Comportamento
+```python
+# ❌ Ruim - testa detalhes de implementação
+def test_function_calls_requests_get():
+    with patch("requests.get") as mock:
+        my_function()
+    mock.assert_called_once()  # Testa que chamou GET?
+
+# ✅ Bom - testa comportamento
+def test_endpoint_returns_user_data():
+    response = client.get("/user")
+    assert response.status_code == 200
+    assert "name" in response.json()
+```
+
+### Anti-Pattern 2: Muitos Asserts por Teste
+```python
+# ❌ Ruim - testa 5 coisas em um teste
+def test_endpoint():
+    response = client.get("/endpoint")
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert "data" in response.json()
+    assert len(response.json()["data"]) > 0
+    assert response.json()["data"][0]["id"] == 1
+
+# ✅ Bom - cada teste testa UMA coisa
+def test_endpoint_returns_200():
+    assert response.status_code == 200
+
+def test_endpoint_returns_json():
+    assert response.headers["Content-Type"] == "application/json"
+
+def test_endpoint_response_has_data():
+    assert "data" in response.json()
+```
+
+### Anti-Pattern 3: Não Mockar APIs Externas
+```python
+# ❌ Ruim - testa com API real
+def test_fetch_emails():
+    # Isso faz chamada REAL à Microsoft Graph API!
+    result = fetch_outlook_emails("real-token")
+    assert "emails" in result
+
+# ✅ Bom - mocka a API
+def test_fetch_emails():
+    with patch("app.utils.requests.get") as mock:
+        mock.return_value.json.return_value = {"emails": [...]}
+        result = fetch_outlook_emails("test-token")
+        assert "emails" in result
+```
+
+### Anti-Pattern 4: Testes que Dependem de Ordem
+```python
+# ❌ Ruim - teste 2 depende de teste 1 rodar antes
+def test_1_create_user():
+    global user_id
+    user_id = create_user(...)
+
+def test_2_get_user():
+    user = get_user(user_id)  # Depende de teste 1!
+
+# ✅ Bom - cada teste é independente
+@pytest.fixture
+def user_id():
+    return create_user(...)
+
+def test_create_user(user_id):
+    assert user_id is not None
+
+def test_get_user(user_id):
+    user = get_user(user_id)
+    assert user is not None
+```
+
+### Anti-Pattern 5: Setup Complexo no Teste
+```python
+# ❌ Ruim - setup dentro do teste
+def test_endpoint():
+    # 20 linhas de setup...
+    assert result == expected
+
+# ✅ Bom - use fixtures
+@pytest.fixture
+def authenticated_session():
+    # Setup aqui
+    return session_id
+
+def test_endpoint(authenticated_session):
+    # Apenas o teste
+    assert result == expected
+```
+
+### Anti-Pattern 6: Escrever Código Sem Testes Falharem Primeiro
+```python
+# ❌ Ruim - escreveu código, depois tentou teste
+def my_function():
+    # ... código complexo ...
+    return result
+
+def test_my_function():
+    # Teste é muito fraco, não revela bugs
+
+# ✅ Bom - teste PRIMEIRO, depois código
+def test_my_function():
+    # Teste bem definido que descreve comportamento
+    assert my_function(input) == expected_output
+    # Agora escreva my_function() para passar
+```
+
+---
+
 ## ❓ FAQ Rápido
 
 **P: E se meu teste passar sem implementar nada?**

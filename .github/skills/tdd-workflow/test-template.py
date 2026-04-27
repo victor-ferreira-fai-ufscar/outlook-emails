@@ -1,83 +1,65 @@
 """
-Template para escrever um novo teste seguindo TDD.
-Copie este arquivo, adapte os nomes e comece a escrever testes!
-
-Estrutura:
-1. Imports necessários
-2. Fixture para setup (se precisar)
-3. Testes do caso de sucesso (happy path)
-4. Testes de erro (error cases)
-5. Testes de edge cases
-
-Use com: pytest tests/test_[seu_recurso].py -v
+Template para testes TDD.
+Copie este arquivo, adapte os nomes e escreva seus testes.
 """
 
 import pytest
 from fastapi.testclient import TestClient
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch, MagicMock
 
 from app.main import app
 
 client = TestClient(app, raise_server_exceptions=False)
 
 
-# ============================================================================
-# FIXTURES (Setup/Teardown)
-# ============================================================================
-
-
 @pytest.fixture(autouse=True)
 def use_tmp_sessions(tmp_path, monkeypatch):
-    """Redireciona sessões para diretório temporário para isolamento."""
+    """Isola sessões em diretório temporário."""
     monkeypatch.chdir(tmp_path)
 
 
 @pytest.fixture
 def authenticated_session(tmp_path):
-    """Cria uma sessão autenticada válida para testes."""
+    """Cria uma sessão autenticada para testes."""
     import uuid
     from app.utils import write_session_file
 
     session_id = str(uuid.uuid4())
     expires_at = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
-
-    write_session_file(
-        f"session-{session_id}.json",
-        {
-            "access_token": "test-token",
-            "expires_at": expires_at,
-            "refresh_token": "test-refresh",
-        },
-    )
+    write_session_file(f"session-{session_id}.json", {
+        "access_token": "test-token",
+        "expires_at": expires_at,
+        "refresh_token": "test-refresh",
+    })
     return session_id
 
 
-# ============================================================================
-# TESTES - CASO DE SUCESSO (Happy Path)
-# ============================================================================
-
-
-def test_new_endpoint_returns_200_status(authenticated_session):
-    """
-    RED + GREEN: Teste que o novo endpoint retorna status 200.
-
-    Comportamento esperado: GET /new-endpoint com sessão válida
-    retorna status 200.
-    """
-    response = client.get(
-        "/new-endpoint", cookies={"local_session_id": authenticated_session}
-    )
+# TESTES - CASO DE SUCESSO
+def test_new_endpoint_returns_200(authenticated_session):
+    """Endpoint retorna 200 com sessão válida."""
+    response = client.get("/new-endpoint", cookies={"local_session_id": authenticated_session})
     assert response.status_code == 200
 
 
 def test_new_endpoint_returns_expected_fields(authenticated_session):
-    """
-    RED + GREEN: Teste que resposta contém campos esperados.
+    """Resposta contém campos esperados."""
+    response = client.get("/new-endpoint", cookies={"local_session_id": authenticated_session})
+    assert "field" in response.json()
 
-    Comportamento esperado: Resposta JSON tem as chaves necessárias.
-    """
-    response = client.get(
+
+# TESTES - ERRO
+def test_new_endpoint_requires_auth():
+    """Endpoint rejeita requisições sem autenticação."""
+    response = client.get("/new-endpoint")
+    assert response.status_code == 401
+
+
+# TESTES - EDGE CASES
+def test_new_endpoint_with_empty_response():
+    """Endpoint trata respostas vazias."""
+    pass
+
         "/new-endpoint", cookies={"local_session_id": authenticated_session}
     )
     data = response.json()
