@@ -348,3 +348,48 @@ def test_messages_sent_latest_empty_folder(tmp_path):
 def test_messages_sent_latest_without_session_returns_401():
     response = client.get("/messages/sent/latest")
     assert response.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# BOT / Teams webhook bootstrap
+# ---------------------------------------------------------------------------
+
+
+def test_bot_health_returns_200_and_channel():
+    response = client.get("/bot/health")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["channel"] == "microsoft-teams"
+
+
+def test_bot_messages_help_command_returns_available_commands():
+    response = client.post("/bot/messages", json={"type": "message", "text": "ajuda"})
+    assert response.status_code == 200
+    body = response.json()
+    assert "login" in body["commands"]
+    assert "logout" in body["commands"]
+
+
+def test_bot_messages_login_command_returns_login_url():
+    response = client.post("/bot/messages", json={"type": "message", "text": "login"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["type"] == "auth"
+    assert body["login_url"]
+
+
+def test_bot_messages_status_command_returns_not_authenticated_by_default():
+    response = client.post("/bot/messages", json={"type": "message", "text": "status"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["authenticated"] is False
+
+
+def test_bot_messages_unknown_command_returns_hint():
+    response = client.post(
+        "/bot/messages", json={"type": "message", "text": "comando-invalido"}
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert "ajuda" in body["message"].lower()

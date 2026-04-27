@@ -13,7 +13,7 @@ Estrutura:
 
 from fastapi import FastAPI
 
-from app.routes import health, auth, profile, messages
+from app.routes import health, auth, profile, messages, bot
 
 app = FastAPI(
     title="Outlook Profile Integration",
@@ -26,3 +26,4 @@ app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(profile.router)
 app.include_router(messages.router)
+app.include_router(bot.router)

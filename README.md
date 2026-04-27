@@ -35,6 +35,7 @@ cp .env.example .env
 - `MS_CLIENT_SECRET`
 - `MS_TENANT_ID` (pode ser `common` para testes)
 - `MS_REDIRECT_URI`
+- `BOT_LOGIN_URL`
 - `SESSION_SECRET_KEY`
 
 ## Executar (recomendado: Docker Compose)
@@ -68,6 +69,31 @@ Endpoints disponiveis:
 - `GET /profile` consulta perfil atual
 - `GET /profile/export` exporta novo JSON do perfil
 - `GET /messages/sent/latest` retorna o ultimo e-mail enviado
+- `GET /bot/health` status do modulo de bot (Teams)
+- `POST /bot/messages` webhook inicial para comandos (`ajuda`, `login`, `status`, `logout`)
+
+## Bot no Teams (fase inicial)
+
+Esta base ja inclui um modulo inicial para bot em FastAPI, preparado para evoluir para o fluxo Teams sem criar outro backend.
+
+Comandos iniciais suportados no webhook:
+
+- `ajuda`
+- `login`
+- `status`
+- `logout`
+
+Proximo passo recomendado: conectar esse endpoint ao Bot Framework e persistir estado de conversa em banco (Supabase Postgres) ou cache dedicado.
+
+## Deploy 24/7 (Render)
+
+Para deploy no Render, publique este backend FastAPI e configure as variaveis do `.env.example` no painel de ambiente.
+
+Comando de start sugerido:
+
+```bash
+uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
 
 ## Persistencia local temporaria
 
