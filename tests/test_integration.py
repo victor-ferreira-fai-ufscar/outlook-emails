@@ -204,6 +204,15 @@ def test_auth_callback_missing_code_or_state():
     assert response.status_code == 400
 
 
+def test_auth_callback_alias_missing_code_or_state():
+    response = client.post(
+        "/callback",
+        content="code=only-code",
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert response.status_code == 400
+
+
 def test_auth_callback_flow_not_found():
     response = client.post(
         "/auth/callback",

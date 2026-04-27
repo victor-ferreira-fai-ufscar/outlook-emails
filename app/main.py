@@ -24,6 +24,7 @@ app = FastAPI(
 # Registrar rotas
 app.include_router(health.router)
 app.include_router(auth.router)
+app.include_router(auth.public_router)
 app.include_router(profile.router)
 app.include_router(messages.router)
 app.include_router(bot.router)

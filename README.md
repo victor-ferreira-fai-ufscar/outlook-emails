@@ -39,7 +39,20 @@ cp .env.example .env
 - `BOT_REQUIRE_AUTH` (`true/false`)
 - `BOT_BEARER_TOKEN` (token Bearer do webhook do bot)
 - `BOT_ALLOWED_CHANNEL` (padrao: `msteams`)
+- `SUPABASE_URL` (opcional)
+- `SUPABASE_KEY` (opcional)
 - `SESSION_SECRET_KEY`
+
+### Redirect URI por ambiente
+
+Use valores diferentes para local e producao:
+
+- **Local**
+  - `MS_REDIRECT_URI=http://localhost:8000/auth/callback`
+- **Render (producao)**
+  - `MS_REDIRECT_URI=https://outlook-emails.onrender.com/auth/callback`
+
+Observacao: o backend agora aceita tambem `https://outlook-emails.onrender.com/callback` para compatibilidade com registros existentes no Azure.
 
 ## Executar (recomendado: Docker Compose)
 
@@ -69,6 +82,7 @@ Endpoints disponiveis:
 - `GET /` status da aplicacao
 - `GET /auth/login` inicia OAuth2
 - `GET /auth/callback` processa callback do OAuth2
+- `GET /callback` alias de callback para compatibilidade em producao
 - `GET /profile` consulta perfil atual
 - `GET /profile/export` exporta novo JSON do perfil
 - `GET /messages/sent/latest` retorna o ultimo e-mail enviado
@@ -122,6 +136,26 @@ Passos sugeridos no Render:
 - `sessions/flow-<state>.json`: dados do auth flow durante login
 - `sessions/session-<uuid>.json`: token de acesso e metadados da sessao autenticada
 - `data/outlook-profile-*.json`: snapshots do perfil exportado
+
+## Supabase (opcional, recomendado para producao)
+
+Quando `SUPABASE_URL` e `SUPABASE_KEY` estao definidos, a aplicacao continua gravando localmente e tambem sincroniza dados para Supabase.
+
+Comportamento atual:
+
+- `sessions/` continua sendo escrita localmente.
+- Tabela `sessions` no Supabase recebe upsert por `file_name`.
+- Tabela `profiles` no Supabase recebe snapshots exportados.
+- Se o arquivo local de sessao nao existir, o backend tenta ler da tabela `sessions`.
+
+Estrutura minima esperada no Supabase:
+
+- tabela `sessions`: `file_name` (text, unique), `payload` (jsonb), `updated_at` (timestamptz)
+- tabela `profiles`: `id` (uuid default), `user_id` (text), `path` (text), `payload` (jsonb), `created_at` (timestamptz)
+
+Arquivo pronto com SQL:
+
+- `docs/supabase.sql`
 
 ## Estrutura
 

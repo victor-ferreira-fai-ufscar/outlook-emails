@@ -22,6 +22,7 @@ from app.utils import (
 )
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
+public_router = APIRouter(tags=["authentication"])
 
 
 def _hosts_match(configured_host: str, request_host: str) -> bool:
@@ -79,6 +80,7 @@ def auth_login(request: Request) -> RedirectResponse:
 
 
 @router.api_route("/callback", methods=["GET", "POST"])
+@public_router.api_route("/callback", methods=["GET", "POST"])
 async def auth_callback(request: Request) -> HTMLResponse:
     """Processa callback do OAuth2 e retorna pagina de sucesso."""
     body_params: dict[str, list[str]] = {}

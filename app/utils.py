@@ -17,7 +17,9 @@ from app.config import (
     MS_CLIENT_ID,
     MS_CLIENT_SECRET,
     MS_TENANT_ID,
+    SUPABASE_ENABLED,
 )
+from app.supabase_client import get_supabase_client
 
 
 def authority_url() -> str:
@@ -38,12 +40,14 @@ def write_session_file(file_name: str, payload: dict[str, Any]) -> None:
     with file_path.open("w", encoding="utf-8") as fp:
         json.dump(payload, fp, indent=2, ensure_ascii=False)
 
+    _sync_session_to_supabase(file_name=file_name, payload=payload)
+
 
 def read_session_file(file_name: str) -> dict[str, Any] | None:
     """Le dados de sessao de arquivo JSON local."""
     file_path = sessions_dir() / file_name
     if not file_path.exists():
-        return None
+        return _read_session_from_supabase(file_name=file_name)
 
     with file_path.open("r", encoding="utf-8") as fp:
         return json.load(fp)
@@ -116,7 +120,74 @@ def save_profile_json(profile_data: dict[str, Any]) -> str:
     with output_path.open("w", encoding="utf-8") as fp:
         json.dump(profile_data, fp, indent=2, ensure_ascii=False)
 
+    _sync_profile_to_supabase(
+        user_id=user_id,
+        path=str(output_path),
+        payload=profile_data,
+    )
+
     return str(output_path)
+
+
+def _sync_session_to_supabase(file_name: str, payload: dict[str, Any]) -> None:
+    """Sincroniza sessão em Supabase sem interromper fluxo local."""
+    if not SUPABASE_ENABLED:
+        return
+
+    try:
+        client = get_supabase_client()
+        client.table("sessions").upsert(
+            {
+                "file_name": file_name,
+                "payload": payload,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            },
+            on_conflict="file_name",
+        ).execute()
+    except Exception:
+        # Mantém operação local mesmo se Supabase estiver indisponível.
+        return
+
+
+def _read_session_from_supabase(file_name: str) -> dict[str, Any] | None:
+    """Busca sessão no Supabase quando arquivo local não existe."""
+    if not SUPABASE_ENABLED:
+        return None
+
+    try:
+        client = get_supabase_client()
+        response = (
+            client.table("sessions")
+            .select("payload")
+            .eq("file_name", file_name)
+            .limit(1)
+            .execute()
+        )
+        rows = response.data or []
+        if not rows:
+            return None
+        return rows[0].get("payload")
+    except Exception:
+        return None
+
+
+def _sync_profile_to_supabase(user_id: str, path: str, payload: dict[str, Any]) -> None:
+    """Sincroniza snapshot de perfil em Supabase sem quebrar execução local."""
+    if not SUPABASE_ENABLED:
+        return
+
+    try:
+        client = get_supabase_client()
+        client.table("profiles").insert(
+            {
+                "user_id": user_id,
+                "path": path,
+                "payload": payload,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }
+        ).execute()
+    except Exception:
+        return
 
 
 def get_local_access_token(request) -> str:

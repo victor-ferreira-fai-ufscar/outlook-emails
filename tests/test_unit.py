@@ -16,6 +16,7 @@ from app.utils import (
     authority_url,
     fetch_latest_sent_email,
     fetch_outlook_profile,
+    get_latest_local_access_token,
     get_local_access_token,
     read_session_file,
     save_profile_json,
@@ -311,3 +312,60 @@ def test_get_local_access_token_expired_no_refresh_token_raises(tmp_path, monkey
     with pytest.raises(HTTPException) as exc_info:
         get_local_access_token(mock_request)
     assert exc_info.value.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Supabase storage integration (optional backend)
+# ---------------------------------------------------------------------------
+
+
+def test_write_session_file_syncs_to_supabase_when_enabled(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    payload = {"access_token": "token", "expires_at": "2099-01-01T00:00:00+00:00"}
+
+    mock_table = MagicMock()
+    mock_upsert = MagicMock()
+    mock_upsert.execute.return_value = MagicMock()
+    mock_table.upsert.return_value = mock_upsert
+    mock_client = MagicMock()
+    mock_client.table.return_value = mock_table
+
+    monkeypatch.setattr(utils, "SUPABASE_ENABLED", True)
+    monkeypatch.setattr(utils, "get_supabase_client", lambda: mock_client)
+
+    write_session_file("session-abc.json", payload)
+
+    mock_client.table.assert_called_with("sessions")
+    assert mock_table.upsert.called
+
+
+def test_read_session_file_falls_back_to_supabase_when_local_missing(
+    tmp_path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+
+    mock_execute = MagicMock()
+    mock_execute.data = [{"payload": {"access_token": "from-supabase"}}]
+
+    mock_limit = MagicMock()
+    mock_limit.execute.return_value = mock_execute
+
+    mock_eq = MagicMock()
+    mock_eq.limit.return_value = mock_limit
+
+    mock_select = MagicMock()
+    mock_select.eq.return_value = mock_eq
+
+    mock_table = MagicMock()
+    mock_table.select.return_value = mock_select
+
+    mock_client = MagicMock()
+    mock_client.table.return_value = mock_table
+
+    monkeypatch.setattr(utils, "SUPABASE_ENABLED", True)
+    monkeypatch.setattr(utils, "get_supabase_client", lambda: mock_client)
+
+    result = read_session_file("session-missing.json")
+
+    assert result == {"access_token": "from-supabase"}
+    mock_client.table.assert_called_with("sessions")
