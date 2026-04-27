@@ -36,6 +36,9 @@ cp .env.example .env
 - `MS_TENANT_ID` (pode ser `common` para testes)
 - `MS_REDIRECT_URI`
 - `BOT_LOGIN_URL`
+- `BOT_REQUIRE_AUTH` (`true/false`)
+- `BOT_BEARER_TOKEN` (token Bearer do webhook do bot)
+- `BOT_ALLOWED_CHANNEL` (padrao: `msteams`)
 - `SESSION_SECRET_KEY`
 
 ## Executar (recomendado: Docker Compose)
@@ -83,17 +86,36 @@ Comandos iniciais suportados no webhook:
 - `status`
 - `logout`
 
+Eventos aceitos no webhook:
+
+- `message`
+- `conversationUpdate` (retorna mensagem de boas-vindas)
+
+Seguranca do webhook:
+
+- Se `BOT_REQUIRE_AUTH=true`, o endpoint exige `Authorization: Bearer <BOT_BEARER_TOKEN>`.
+- Se `channelId` vier no payload e for diferente de `BOT_ALLOWED_CHANNEL`, a requisicao e rejeitada.
+
 Proximo passo recomendado: conectar esse endpoint ao Bot Framework e persistir estado de conversa em banco (Supabase Postgres) ou cache dedicado.
 
 ## Deploy 24/7 (Render)
 
 Para deploy no Render, publique este backend FastAPI e configure as variaveis do `.env.example` no painel de ambiente.
 
+Este repositorio ja inclui blueprint em `render.yaml` para facilitar o provisionamento.
+
 Comando de start sugerido:
 
 ```bash
 uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT
 ```
+
+Passos sugeridos no Render:
+
+1. Criar novo Web Service a partir do repositorio.
+2. Selecionar o arquivo `render.yaml`.
+3. Definir segredos (`MS_CLIENT_ID`, `MS_CLIENT_SECRET`, `MS_REDIRECT_URI`, `BOT_LOGIN_URL`, `BOT_BEARER_TOKEN`, `SESSION_SECRET_KEY`).
+4. Validar healthcheck em `/bot/health`.
 
 ## Persistencia local temporaria
 

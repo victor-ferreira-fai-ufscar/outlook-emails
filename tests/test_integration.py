@@ -12,6 +12,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+import app.routes.bot as bot_routes
 from app.utils import write_session_file
 
 client = TestClient(app, raise_server_exceptions=False)
@@ -386,6 +387,51 @@ def test_bot_messages_status_command_returns_not_authenticated_by_default():
     assert body["authenticated"] is False
 
 
+def test_bot_messages_status_with_existing_session_returns_authenticated(tmp_path):
+    _create_session(tmp_path)
+    fake_profile = {"displayName": "Victor", "mail": "victor@example.com"}
+
+    with patch("app.routes.bot.fetch_outlook_profile", return_value=fake_profile):
+        response = client.post(
+            "/bot/messages", json={"type": "message", "text": "status"}
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["authenticated"] is True
+    assert body["user"]["displayName"] == "Victor"
+
+
+def test_bot_messages_profile_command_uses_existing_session(tmp_path):
+    _create_session(tmp_path)
+    fake_profile = {"displayName": "Victor", "mail": "victor@example.com"}
+
+    with patch("app.routes.bot.fetch_outlook_profile", return_value=fake_profile):
+        response = client.post(
+            "/bot/messages", json={"type": "message", "text": "perfil"}
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["type"] == "profile"
+    assert body["profile"]["mail"] == "victor@example.com"
+
+
+def test_bot_messages_latest_email_command_uses_existing_session(tmp_path):
+    _create_session(tmp_path)
+    fake_email = {"subject": "Hello World", "bodyPreview": "preview"}
+
+    with patch("app.routes.bot.fetch_latest_sent_email", return_value=fake_email):
+        response = client.post(
+            "/bot/messages", json={"type": "message", "text": "ultimo-email"}
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["type"] == "latest-email"
+    assert body["email"]["subject"] == "Hello World"
+
+
 def test_bot_messages_unknown_command_returns_hint():
     response = client.post(
         "/bot/messages", json={"type": "message", "text": "comando-invalido"}
@@ -393,3 +439,48 @@ def test_bot_messages_unknown_command_returns_hint():
     assert response.status_code == 200
     body = response.json()
     assert "ajuda" in body["message"].lower()
+
+
+def test_bot_conversation_update_returns_welcome_message():
+    response = client.post(
+        "/bot/messages",
+        json={
+            "type": "conversationUpdate",
+            "channelId": "msteams",
+            "from": {"id": "user-123", "name": "Victor"},
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["type"] == "welcome"
+    assert "ajuda" in body["message"].lower()
+
+
+def test_bot_messages_requires_auth_when_enabled(monkeypatch):
+    monkeypatch.setattr(bot_routes, "BOT_REQUIRE_AUTH", True)
+    monkeypatch.setattr(bot_routes, "BOT_BEARER_TOKEN", "token-test")
+
+    response = client.post("/bot/messages", json={"type": "message", "text": "ajuda"})
+    assert response.status_code == 401
+
+
+def test_bot_messages_accepts_valid_bearer_token_when_auth_enabled(monkeypatch):
+    monkeypatch.setattr(bot_routes, "BOT_REQUIRE_AUTH", True)
+    monkeypatch.setattr(bot_routes, "BOT_BEARER_TOKEN", "token-test")
+
+    response = client.post(
+        "/bot/messages",
+        headers={"Authorization": "Bearer token-test"},
+        json={"type": "message", "text": "ajuda"},
+    )
+    assert response.status_code == 200
+
+
+def test_bot_messages_rejects_invalid_channel(monkeypatch):
+    monkeypatch.setattr(bot_routes, "BOT_ALLOWED_CHANNEL", "msteams")
+
+    response = client.post(
+        "/bot/messages",
+        json={"type": "message", "text": "ajuda", "channelId": "slack"},
+    )
+    assert response.status_code == 400

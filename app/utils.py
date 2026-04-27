@@ -185,3 +185,69 @@ def get_local_access_token(request) -> str:
             )
 
     return access_token
+
+
+def get_latest_local_access_token() -> str:
+    """Retorna access token da sessao local mais recente (sem cookie)."""
+    session_files = sorted(
+        sessions_dir().glob("session-*.json"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+
+    if not session_files:
+        raise HTTPException(
+            status_code=401,
+            detail="Nenhuma sessao local encontrada. Faça login em /auth/login.",
+        )
+
+    latest_file = session_files[0]
+    session_data = read_session_file(latest_file.name)
+    if not session_data:
+        raise HTTPException(
+            status_code=401,
+            detail="Sessao local invalida. Faça login novamente em /auth/login.",
+        )
+
+    access_token = session_data.get("access_token")
+    if not access_token:
+        raise HTTPException(
+            status_code=401,
+            detail="Token de acesso ausente na sessao local.",
+        )
+
+    expires_at_raw = session_data.get("expires_at")
+    if expires_at_raw:
+        expires_at = datetime.fromisoformat(expires_at_raw)
+        if datetime.now(timezone.utc) >= expires_at - timedelta(seconds=60):
+            refresh_token = session_data.get("refresh_token")
+            if not refresh_token:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Sessao expirada e sem refresh token. Faça login novamente.",
+                )
+
+            msal_app = build_msal_app()
+            refreshed = msal_app.acquire_token_by_refresh_token(
+                refresh_token=refresh_token,
+                scopes=GRAPH_SCOPES,
+            )
+
+            if "access_token" not in refreshed:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Falha ao atualizar token. Faça login novamente.",
+                )
+
+            access_token = refreshed["access_token"]
+            new_expires_in: int = refreshed.get("expires_in", 3600)
+            session_data["access_token"] = access_token
+            session_data["expires_at"] = (
+                datetime.now(timezone.utc) + timedelta(seconds=new_expires_in)
+            ).isoformat()
+            session_data["refresh_token"] = refreshed.get(
+                "refresh_token", refresh_token
+            )
+            write_session_file(file_name=latest_file.name, payload=session_data)
+
+    return access_token

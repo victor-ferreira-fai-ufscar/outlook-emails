@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: outlook-emails-api
+    runtime: python
+    plan: free
+    region: oregon
+    branch: main
+    buildCommand: |
+      uv sync --frozen
+    startCommand: |
+      uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /bot/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: MS_CLIENT_ID
+        sync: false
+      - key: MS_CLIENT_SECRET
+        sync: false
+      - key: MS_TENANT_ID
+        value: common
+      - key: MS_REDIRECT_URI
+        sync: false
+      - key: BOT_LOGIN_URL
+        sync: false
+      - key: BOT_REQUIRE_AUTH
+        value: "true"
+      - key: BOT_BEARER_TOKEN
+        sync: false
+      - key: BOT_ALLOWED_CHANNEL
+        value: msteams
+      - key: SESSION_SECRET_KEY
+        sync: false
