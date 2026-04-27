@@ -2,6 +2,7 @@
 Testes de integracao dos endpoints FastAPI usando TestClient.
 Nenhuma chamada real a APIs externas ou ao Azure AD é feita - tudo mockado.
 """
+
 import json
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -10,7 +11,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app, _write_session_file
+from app.main import app
+from app.utils import write_session_file
 
 client = TestClient(app, raise_server_exceptions=False)
 
@@ -36,7 +38,7 @@ def _create_session(
     expires_at = (
         datetime.now(timezone.utc) + timedelta(seconds=expires_offset_seconds)
     ).isoformat()
-    _write_session_file(
+    write_session_file(
         f"session-{session_id}.json",
         {
             "access_token": access_token,
@@ -82,7 +84,7 @@ def test_auth_login_redirects_to_microsoft():
     mock_msal = MagicMock()
     mock_msal.initiate_auth_code_flow.return_value = fake_flow
 
-    with patch("app.main._build_msal_app", return_value=mock_msal):
+    with patch("app.utils.build_msal_app", return_value=mock_msal):
         response = client.get("/auth/login", follow_redirects=False)
 
     assert response.status_code == 302
@@ -106,11 +108,9 @@ def test_auth_login_saves_flow_file(tmp_path):
     mock_msal = MagicMock()
     mock_msal.initiate_auth_code_flow.return_value = fake_flow
 
-    import app.main as main_module
-
     with (
-        patch("app.main._build_msal_app", return_value=mock_msal),
-        patch.object(main_module, "redirect_uri", "http://testserver/auth/callback"),
+        patch("app.utils.build_msal_app", return_value=mock_msal),
+        patch("app.routes.auth.MS_REDIRECT_URI", "http://testserver/auth/callback"),
     ):
         client.get("/auth/login", follow_redirects=False)
 
@@ -127,7 +127,7 @@ def test_auth_login_saves_flow_file(tmp_path):
 
 def test_auth_callback_post_success(tmp_path):
     state = "test-state"
-    _write_session_file(
+    write_session_file(
         f"flow-{state}.json",
         {
             "created_at": datetime.now(timezone.utc).isoformat(),
@@ -176,8 +176,10 @@ def test_auth_callback_post_success(tmp_path):
     mock_email_resp.json.return_value = {"value": [fake_email]}
 
     with (
-        patch("app.main._build_msal_app", return_value=mock_msal),
-        patch("app.main.requests.get", side_effect=[mock_profile_resp, mock_email_resp]),
+        patch("app.utils.build_msal_app", return_value=mock_msal),
+        patch(
+            "app.utils.requests.get", side_effect=[mock_profile_resp, mock_email_resp]
+        ),
     ):
         response = client.post(
             "/auth/callback",
@@ -213,7 +215,7 @@ def test_auth_callback_flow_not_found():
 
 def test_auth_callback_msal_token_failure(tmp_path):
     state = "bad-msal-state"
-    _write_session_file(
+    write_session_file(
         f"flow-{state}.json",
         {
             "created_at": datetime.now(timezone.utc).isoformat(),
@@ -234,7 +236,7 @@ def test_auth_callback_msal_token_failure(tmp_path):
         "error_description": "AADSTS70000: Something went wrong.",
     }
 
-    with patch("app.main._build_msal_app", return_value=mock_msal):
+    with patch("app.utils.build_msal_app", return_value=mock_msal):
         response = client.post(
             "/auth/callback",
             content=f"code=bad-code&state={state}",
@@ -257,10 +259,8 @@ def test_profile_returns_user_data(tmp_path):
     mock_resp.status_code = 200
     mock_resp.json.return_value = fake_profile
 
-    with patch("app.main.requests.get", return_value=mock_resp):
-        response = client.get(
-            "/profile", cookies={"local_session_id": session_id}
-        )
+    with patch("app.utils.requests.get", return_value=mock_resp):
+        response = client.get("/profile", cookies={"local_session_id": session_id})
 
     assert response.status_code == 200
     assert response.json()["displayName"] == "Victor"
@@ -288,7 +288,7 @@ def test_profile_export_creates_json_file(tmp_path):
     mock_resp.status_code = 200
     mock_resp.json.return_value = fake_profile
 
-    with patch("app.main.requests.get", return_value=mock_resp):
+    with patch("app.utils.requests.get", return_value=mock_resp):
         response = client.get(
             "/profile/export", cookies={"local_session_id": session_id}
         )
@@ -320,7 +320,7 @@ def test_messages_sent_latest_returns_email(tmp_path):
     mock_resp.status_code = 200
     mock_resp.json.return_value = {"value": [fake_email]}
 
-    with patch("app.main.requests.get", return_value=mock_resp):
+    with patch("app.utils.requests.get", return_value=mock_resp):
         response = client.get(
             "/messages/sent/latest", cookies={"local_session_id": session_id}
         )
@@ -336,7 +336,7 @@ def test_messages_sent_latest_empty_folder(tmp_path):
     mock_resp.status_code = 200
     mock_resp.json.return_value = {"value": []}
 
-    with patch("app.main.requests.get", return_value=mock_resp):
+    with patch("app.utils.requests.get", return_value=mock_resp):
         response = client.get(
             "/messages/sent/latest", cookies={"local_session_id": session_id}
         )
