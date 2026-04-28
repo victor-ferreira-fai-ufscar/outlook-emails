@@ -4,12 +4,11 @@ Rotas de autenticacao OAuth2 com Microsoft Graph.
 
 import uuid
 from datetime import datetime, timedelta, timezone
-from html import escape
 from urllib.parse import parse_qs, urlparse
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from app.config import GRAPH_SCOPES, MS_REDIRECT_URI
 import app.utils as utils
@@ -81,7 +80,7 @@ def auth_login(request: Request) -> RedirectResponse:
 
 @router.api_route("/callback", methods=["GET", "POST"])
 @public_router.api_route("/callback", methods=["GET", "POST"])
-async def auth_callback(request: Request) -> HTMLResponse:
+async def auth_callback(request: Request) -> JSONResponse:
     """Processa callback do OAuth2 e retorna pagina de sucesso."""
     body_params: dict[str, list[str]] = {}
     if request.method == "POST":
@@ -144,38 +143,14 @@ async def auth_callback(request: Request) -> HTMLResponse:
     json_path = save_profile_json(profile)
     latest_email = fetch_latest_sent_email(access_token)
 
-    base_url = str(request.base_url).rstrip("/")
-    profile_url = f"{base_url}/profile"
-    latest_email_url = f"{base_url}/messages/sent/latest"
-    export_url = f"{base_url}/profile/export"
-
-    user_name = escape(profile.get("displayName", "User"))
-    user_mail = escape(profile.get("mail") or profile.get("userPrincipalName") or "")
-    last_subject = escape(latest_email.get("subject", "(sem assunto)"))
-
-    html = f"""
-    <html>
-      <head>
-        <title>Outlook Integration - Auth Success</title>
-      </head>
-      <body style=\"font-family: Arial, sans-serif; max-width: 760px; margin: 32px auto; line-height: 1.5;\">
-        <h1>Autenticacao concluida com sucesso</h1>
-        <p><strong>Usuario:</strong> {user_name}</p>
-        <p><strong>Email:</strong> {user_mail}</p>
-        <p><strong>Ultimo email enviado:</strong> {last_subject}</p>
-        <p><strong>JSON de perfil salvo em:</strong> {escape(json_path)}</p>
-        <hr />
-        <p>Links para teste rapido:</p>
-        <ul>
-          <li><a href=\"{profile_url}\" target=\"_blank\">Ver perfil (/profile)</a></li>
-          <li><a href=\"{latest_email_url}\" target=\"_blank\">Ver ultimo email enviado (/messages/sent/latest)</a></li>
-          <li><a href=\"{export_url}\" target=\"_blank\">Exportar perfil novamente (/profile/export)</a></li>
-        </ul>
-      </body>
-    </html>
-    """
-
-    response = HTMLResponse(content=html)
+    response = JSONResponse(
+        content={
+            "status": "ok",
+            "user": profile,
+            "latest_sent_email": latest_email,
+            "profile_json_path": json_path,
+        }
+    )
     response.set_cookie(
         key="local_session_id",
         value=local_session_id,

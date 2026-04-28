@@ -210,9 +210,12 @@ def test_auth_callback_post_success(tmp_path):
         )
 
     assert response.status_code == 200
-    assert "text/html" in response.headers["content-type"]
-    assert "Victor" in response.text
-    assert "Test Email" in response.text
+    assert "application/json" in response.headers["content-type"]
+    data = response.json()
+    assert data["status"] == "ok"
+    assert data["user"]["displayName"] == "Victor"
+    assert data["user"]["mail"] == "victor@example.com"
+    assert data["latest_sent_email"]["subject"] == "Test Email"
     assert "local_session_id" in response.cookies
 
 
