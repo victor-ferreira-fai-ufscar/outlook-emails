@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
+from fastapi.responses import HTMLResponse
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -75,6 +76,39 @@ def test_scalar_docs_endpoint_is_available_and_uses_openapi_json():
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
     assert "/openapi.json" in response.text
+
+
+def test_scalar_docs_uses_scalar_fastapi_helper_with_expected_openapi_url():
+    fake_html = HTMLResponse("<html>scalar</html>")
+
+    with patch("app.main.get_scalar_api_reference", return_value=fake_html) as mock_ref:
+        response = client.get("/scalar")
+
+    assert response.status_code == 200
+    assert response.text == "<html>scalar</html>"
+    mock_ref.assert_called_once_with(
+        openapi_url="/openapi.json",
+        title="Outlook Profile Integration - Scalar",
+        scalar_proxy_url="https://proxy.scalar.com",
+    )
+
+
+def test_scalar_docs_uses_fallback_openapi_url_when_app_openapi_url_is_none():
+    fake_html = HTMLResponse("<html>scalar-fallback</html>")
+
+    with (
+        patch("app.main.app.openapi_url", None),
+        patch("app.main.get_scalar_api_reference", return_value=fake_html) as mock_ref,
+    ):
+        response = client.get("/scalar")
+
+    assert response.status_code == 200
+    assert response.text == "<html>scalar-fallback</html>"
+    mock_ref.assert_called_once_with(
+        openapi_url="/openapi.json",
+        title="Outlook Profile Integration - Scalar",
+        scalar_proxy_url="https://proxy.scalar.com",
+    )
 
 
 def test_openapi_json_endpoint_is_available():

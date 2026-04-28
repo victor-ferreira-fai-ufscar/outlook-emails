@@ -13,6 +13,7 @@ Estrutura:
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
+from scalar_fastapi import get_scalar_api_reference
 
 from app.routes import health, auth, profile, messages, bot, notifications
 
@@ -26,21 +27,11 @@ app = FastAPI(
 @app.get("/scalar", include_in_schema=False)
 def scalar_docs() -> HTMLResponse:
     openapi_url = app.openapi_url or "/openapi.json"
-    return HTMLResponse(
-        f"""
-<!doctype html>
-<html>
-  <head>
-    <meta charset=\"utf-8\" />
-    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
-    <title>{app.title} - Scalar</title>
-  </head>
-  <body>
-    <script id=\"api-reference\" data-url=\"{openapi_url}\"></script>
-    <script src=\"https://cdn.jsdelivr.net/npm/@scalar/api-reference\"></script>
-  </body>
-</html>
-""".strip()
+    return get_scalar_api_reference(
+        openapi_url=openapi_url,
+        title=f"{app.title} - Scalar",
+        # Use Scalar proxy to prevent CORS issues when loading OpenAPI from browsers.
+        scalar_proxy_url="https://proxy.scalar.com",
     )
 
 

@@ -81,7 +81,7 @@ Endpoints disponiveis:
 
 - `GET /` status da aplicacao
 - `GET /docs` documentacao Swagger UI
-- `GET /scalar` documentacao Scalar API Reference
+- `GET /scalar` documentacao Scalar API Reference (via `scalar-fastapi`, com proxy para evitar problemas de CORS)
 - `GET /openapi.json` schema OpenAPI consumido por Swagger/Scalar
 - `GET /auth/login` inicia OAuth2
 - `GET /auth/callback` processa callback do OAuth2
