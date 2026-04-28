@@ -24,6 +24,7 @@ Foco: <roziane.barbosa@fai.ufscar.br> (e supervisores)
   - Deploy: <https://dashboard.render.com/web/srv-d7nmq0e7r5hc73aus560>
   - Banco de dados: <https://supabase.com/dashboard/project/uuqnlnjfkhrkpfpgwuin>
   - Envio no WhatsApp: <https://www.callmebot.com/blog/free-api-whatsapp-messages/>
+  - Gerenciar permissões: <https://portal.azure.com>
 
 ## Minha escrita/rascunho
 
