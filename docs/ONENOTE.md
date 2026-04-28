@@ -18,3 +18,7 @@ Perguntas a Serem Realizadas para Roziane
     3 -  Como deseja o formato das mensagens ?(pode realizar um template) ou adicionarmos um adaptative card.
     4 - Você possui Regras em seu outlook ?
     5 - Quais são os principais remetentes que você recebe em Ordem de Prioridade ?
+
+---
+
+- Pedir acesso ao pessoal da TI da FAI.UFSCAR para termos acesso ao Teams e conseguirmos enviar as notificações. E também o acesso ao Outlook para conseguirmos acessar os e-mails e realizar os resumos.

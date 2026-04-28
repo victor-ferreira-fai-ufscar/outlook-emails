@@ -1,10 +1,29 @@
 # Ideia
 
+Resumo: Criar um sistema de automação que acesse os e-mails do Outlook, resuma o conteúdo e envie notificações diárias no Microsoft Teams e/ou WhatsApp, categorizando os e-mails por prioridade.
+
+Foco: <roziane.barbosa@fai.ufscar.br> (e supervisores)
+
+> Não teremos uma interface web tradicional (e.g.: Next.js), mas sim um backend em FastAPI que roda periodicamente (via cron ou GitHub Actions) para realizar essa tarefa, e toda a interface será pelo Teams/WhatsApp.
+
+## Possíveis Requisitos
+
+- Compartilhar o relatório dos emails com os Supervisores (adicionar o bot em um grupo do Teams)
+- Separar os emails mais antigos dos mais recentes
+- Criar um dashboard para visualizar os resumos e as prioridades dos emails (através do bot no Teams)
+- Alteração de regras através dos scripts internos
+- Fontes do resumo dos emails
+  - e.g.: esse relatório/resumo é com base em X emails, em Y anexos, recebido Z horários, de A remetentes, etc.
+- Aqueles emails que ela já visualizou ou respondeu não é necessário incluir no relatório/resumo do dia seguinte (focar apenas nos emails novos)
+
 ## Tech Stack
 
 - Back-end:
   - <https://github.com/astral-sh/uv>
   - <https://fastapi.tiangolo.com/>
+  - Deploy: <https://dashboard.render.com/web/srv-d7nmq0e7r5hc73aus560>
+  - Banco de dados: <https://supabase.com/dashboard/project/uuqnlnjfkhrkpfpgwuin>
+  - Envio no WhatsApp: <https://www.callmebot.com/blog/free-api-whatsapp-messages/>
 
 ## Minha escrita/rascunho
 
