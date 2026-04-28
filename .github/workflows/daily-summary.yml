@@ -1,0 +1,31 @@
+name: Daily Outlook Summary
+
+on:
+  schedule:
+    # 11:00 UTC ~= 08:00 America/Sao_Paulo (ajuste conforme horario de verao)
+    - cron: "0 11 * * *"
+  workflow_dispatch:
+
+jobs:
+  send-daily-summary:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger daily summary endpoint
+        env:
+          DAILY_SUMMARY_URL: ${{ secrets.DAILY_SUMMARY_URL }}
+          NOTIFICATIONS_AUTOMATION_TOKEN: ${{ secrets.NOTIFICATIONS_AUTOMATION_TOKEN }}
+        run: |
+          if [ -z "$DAILY_SUMMARY_URL" ]; then
+            echo "Missing secret: DAILY_SUMMARY_URL"
+            exit 1
+          fi
+
+          if [ -z "$NOTIFICATIONS_AUTOMATION_TOKEN" ]; then
+            echo "Missing secret: NOTIFICATIONS_AUTOMATION_TOKEN"
+            exit 1
+          fi
+
+          curl --fail --show-error --silent \
+            -X POST "$DAILY_SUMMARY_URL" \
+            -H "Authorization: Bearer $NOTIFICATIONS_AUTOMATION_TOKEN" \
+            -H "Content-Type: application/json"

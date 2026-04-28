@@ -89,11 +89,9 @@ async def auth_callback(request: Request) -> HTMLResponse:
         body_params = parse_qs(raw_body)
 
     code = request.query_params.get("code") or body_params.get("code", [None])[0]
-    state = (
-        request.query_params.get("state")
-        or body_params.get("state", [None])[0]
-        or request.cookies.get("oauth_state")
-    )
+    state = request.query_params.get("state") or body_params.get("state", [None])[0]
+    if not state and request.method == "GET":
+        state = request.cookies.get("oauth_state")
 
     if not code or not state:
         raise HTTPException(

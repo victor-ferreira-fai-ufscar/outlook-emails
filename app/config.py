@@ -15,6 +15,16 @@ def _as_bool(value: str, default: bool = False) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _as_int(value: str | None, default: int) -> int:
+    """Converte variável de ambiente textual para inteiro com fallback."""
+    if value is None or value.strip() == "":
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
 GRAPH_BASE_URL = "https://graph.microsoft.com/v1.0"
 GRAPH_SCOPES = ["User.Read", "Mail.Read"]
 
@@ -31,3 +41,25 @@ BOT_ALLOWED_CHANNEL = os.getenv("BOT_ALLOWED_CHANNEL", "msteams")
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 SUPABASE_ENABLED = bool(SUPABASE_URL and SUPABASE_KEY)
+
+CALLMEBOT_API_URL = os.getenv(
+    "CALLMEBOT_API_URL", "https://api.callmebot.com/whatsapp.php"
+)
+CALLMEBOT_PHONE = os.getenv("CALLMEBOT_PHONE", "")
+CALLMEBOT_API_KEY = os.getenv("CALLMEBOT_API_KEY", "")
+CALLMEBOT_TIMEOUT_SECONDS = _as_int(os.getenv("CALLMEBOT_TIMEOUT_SECONDS"), 20)
+
+NOTIFICATIONS_REQUIRE_AUTH = _as_bool(
+    os.getenv("NOTIFICATIONS_REQUIRE_AUTH", "true"), default=True
+)
+NOTIFICATIONS_AUTOMATION_TOKEN = os.getenv("NOTIFICATIONS_AUTOMATION_TOKEN", "")
+
+SUMMARY_WINDOW_HOURS = _as_int(os.getenv("SUMMARY_WINDOW_HOURS"), 24)
+SUMMARY_MAX_ITEMS = _as_int(os.getenv("SUMMARY_MAX_ITEMS"), 20)
+SUMMARY_TOP_N = _as_int(os.getenv("SUMMARY_TOP_N"), 10)
+
+SUMMARY_PRIORITY_SENDERS = [
+    sender.strip().lower()
+    for sender in os.getenv("SUMMARY_PRIORITY_SENDERS", "").split(",")
+    if sender.strip()
+]

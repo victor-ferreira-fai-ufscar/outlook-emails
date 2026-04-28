@@ -12,11 +12,16 @@ import requests
 from fastapi import HTTPException
 
 from app.config import (
+    CALLMEBOT_API_KEY,
+    CALLMEBOT_API_URL,
+    CALLMEBOT_PHONE,
+    CALLMEBOT_TIMEOUT_SECONDS,
     GRAPH_BASE_URL,
     GRAPH_SCOPES,
     MS_CLIENT_ID,
     MS_CLIENT_SECRET,
     MS_TENANT_ID,
+    SUMMARY_PRIORITY_SENDERS,
     SUPABASE_ENABLED,
 )
 from app.supabase_client import get_supabase_client
@@ -106,6 +111,154 @@ def fetch_latest_sent_email(access_token: str) -> dict[str, Any]:
         return {"message": "No sent emails found."}
 
     return messages[0]
+
+
+def _priority_from_message(raw_email: dict[str, Any]) -> str:
+    """Classifica prioridade com regras determinísticas para o MVP."""
+    importance = (raw_email.get("importance") or "").lower()
+    sender_email = (
+        raw_email.get("from", {})
+        .get("emailAddress", {})
+        .get("address", "")
+        .strip()
+        .lower()
+    )
+    subject = (raw_email.get("subject") or "").lower()
+    preview = (raw_email.get("bodyPreview") or "").lower()
+    text = f"{subject} {preview}"
+
+    urgent_terms = [
+        "urgente",
+        "urgent",
+        "asap",
+        "hoje",
+        "imediato",
+        "prazo",
+        "venc",
+    ]
+    medium_terms = ["revisar", "status", "acompanhamento", "pendente", "aprovar"]
+
+    if importance == "high":
+        return "urgente"
+
+    if sender_email and sender_email in SUMMARY_PRIORITY_SENDERS:
+        return "urgente"
+
+    if any(term in text for term in urgent_terms):
+        return "urgente"
+
+    if importance == "normal" or any(term in text for term in medium_terms):
+        return "media"
+
+    return "baixa"
+
+
+def fetch_unread_inbox_emails(
+    access_token: str, window_hours: int = 24, max_items: int = 20
+) -> list[dict[str, Any]]:
+    """Busca e-mails não lidos da inbox nas últimas horas informadas."""
+    since = datetime.now(timezone.utc) - timedelta(hours=window_hours)
+    since_iso = since.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+    response = requests.get(
+        f"{GRAPH_BASE_URL}/me/messages",
+        headers={"Authorization": f"Bearer {access_token}"},
+        params={
+            "$top": str(max_items),
+            "$orderby": "receivedDateTime desc",
+            "$filter": f"isRead eq false and receivedDateTime ge {since_iso}",
+            "$select": "id,subject,from,receivedDateTime,bodyPreview,importance,isRead",
+        },
+        timeout=30,
+    )
+
+    if response.status_code >= 400:
+        raise HTTPException(status_code=response.status_code, detail=response.text)
+
+    payload = response.json()
+    messages = payload.get("value", [])
+    normalized: list[dict[str, Any]] = []
+    for message in messages:
+        sender = message.get("from", {}).get("emailAddress", {})
+        normalized.append(
+            {
+                "id": message.get("id"),
+                "subject": message.get("subject") or "(sem assunto)",
+                "sender_name": sender.get("name")
+                or sender.get("address")
+                or "Desconhecido",
+                "sender_email": sender.get("address") or "",
+                "received_at": message.get("receivedDateTime") or "",
+                "preview": message.get("bodyPreview") or "",
+                "importance": message.get("importance") or "",
+                "is_read": message.get("isRead", False),
+                "priority": _priority_from_message(message),
+            }
+        )
+
+    return normalized
+
+
+def format_daily_email_summary(emails: list[dict[str, Any]], top_n: int = 10) -> str:
+    """Monta resumo textual para envio diário no WhatsApp."""
+    if not emails:
+        return "Nenhum email novo nao lido nas ultimas 24 horas."
+
+    counts = {"urgente": 0, "media": 0, "baixa": 0}
+    for email in emails:
+        priority = email.get("priority", "baixa")
+        if priority not in counts:
+            counts["baixa"] += 1
+            continue
+        counts[priority] += 1
+
+    lines = [
+        "Resumo diario de emails",
+        f"Total de nao lidos (24h): {len(emails)}",
+        f"Urgente: {counts['urgente']} | Media: {counts['media']} | Baixa: {counts['baixa']}",
+        "",
+        "Principais emails:",
+    ]
+
+    for index, email in enumerate(emails[:top_n], start=1):
+        received_at = str(email.get("received_at") or "")
+        short_received = received_at.replace("T", " ").replace("Z", "")[:16]
+        lines.append(
+            f"{index}. [{str(email.get('priority', 'baixa')).upper()}] {email.get('subject')} - {email.get('sender_name')} ({short_received})"
+        )
+
+    return "\n".join(lines)
+
+
+def send_whatsapp_via_callmebot(message: str) -> dict[str, Any]:
+    """Envia mensagem pelo provedor CallMeBot."""
+    if not CALLMEBOT_PHONE or not CALLMEBOT_API_KEY:
+        raise HTTPException(
+            status_code=500,
+            detail="Configure CALLMEBOT_PHONE and CALLMEBOT_API_KEY in environment.",
+        )
+
+    response = requests.get(
+        CALLMEBOT_API_URL,
+        params={
+            "phone": CALLMEBOT_PHONE,
+            "text": message,
+            "apikey": CALLMEBOT_API_KEY,
+        },
+        timeout=CALLMEBOT_TIMEOUT_SECONDS,
+    )
+
+    if response.status_code >= 400:
+        raise HTTPException(
+            status_code=502,
+            detail=f"CallMeBot error ({response.status_code}): {response.text}",
+        )
+
+    return {
+        "ok": True,
+        "status_code": response.status_code,
+        "provider_response": response.text,
+    }
 
 
 def save_profile_json(profile_data: dict[str, Any]) -> str:

@@ -89,8 +89,47 @@ Endpoints disponiveis:
 - `GET /profile` consulta perfil atual
 - `GET /profile/export` exporta novo JSON do perfil
 - `GET /messages/sent/latest` retorna o ultimo e-mail enviado
+- `POST /notifications/daily-summary` gera resumo diario de emails nao lidos e envia no WhatsApp (CallMeBot)
 - `GET /bot/health` status do modulo de bot (Teams)
 - `POST /bot/messages` webhook inicial para comandos (`ajuda`, `login`, `status`, `logout`)
+
+## Resumo diario no WhatsApp (MVP)
+
+Fluxo implementado:
+
+1. Le e-mails nao lidos das ultimas 24h no Outlook (Graph API)
+2. Classifica prioridade por regras simples (urgente/media/baixa)
+3. Gera resumo textual
+4. Envia no WhatsApp via CallMeBot
+
+Variaveis necessarias no `.env`:
+
+- `CALLMEBOT_PHONE`
+- `CALLMEBOT_API_KEY`
+- `NOTIFICATIONS_AUTOMATION_TOKEN`
+
+Opcional:
+
+- `SUMMARY_PRIORITY_SENDERS` (lista CSV de remetentes com prioridade alta)
+
+Exemplo de disparo manual (apos autenticar em `/auth/login`):
+
+```bash
+curl -X POST http://localhost:8000/notifications/daily-summary \
+  -H "Authorization: Bearer ${NOTIFICATIONS_AUTOMATION_TOKEN}"
+```
+
+## Agendamento diario com GitHub Actions
+
+Workflow adicionado em `.github/workflows/daily-summary.yml` com:
+
+- `schedule` (cron diario)
+- `workflow_dispatch` (execucao manual)
+
+Secrets esperados no GitHub:
+
+- `DAILY_SUMMARY_URL` (ex.: `https://seu-backend.onrender.com/notifications/daily-summary`)
+- `NOTIFICATIONS_AUTOMATION_TOKEN`
 
 ## Bot no Teams (fase inicial)
 
