@@ -278,15 +278,11 @@ def test_auth_callback_post_success(tmp_path):
             "/auth/callback",
             content=f"code=test-code&state={state}",
             headers={"Content-Type": "application/x-www-form-urlencoded"},
+            follow_redirects=False,
         )
 
-    assert response.status_code == 200
-    assert "application/json" in response.headers["content-type"]
-    data = response.json()
-    assert data["status"] == "ok"
-    assert data["user"]["displayName"] == "Victor"
-    assert data["user"]["mail"] == "victor@example.com"
-    assert data["latest_sent_email"]["subject"] == "Test Email"
+    assert response.status_code == 302
+    assert response.headers["location"] == "/?welcome=1"
     assert "local_session_id" in response.cookies
 
 
@@ -342,9 +338,10 @@ def test_auth_callback_links_whatsapp_number_to_authenticated_user(tmp_path):
             "/auth/callback",
             content=f"code=test-code&state={state}",
             headers={"Content-Type": "application/x-www-form-urlencoded"},
+            follow_redirects=False,
         )
 
-    assert response.status_code == 200
+    assert response.status_code == 302
     from app.supabase_client import get_user_id_by_whatsapp_number
 
     assert get_user_id_by_whatsapp_number("5511999999999") == "user-123"

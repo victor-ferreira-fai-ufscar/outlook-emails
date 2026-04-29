@@ -87,7 +87,7 @@ def auth_login(request: Request) -> RedirectResponse:
 
 @router.api_route("/callback", methods=["GET", "POST"])
 @public_router.api_route("/callback", methods=["GET", "POST"])
-async def auth_callback(request: Request) -> JSONResponse:
+async def auth_callback(request: Request):
     """Processa callback do OAuth2 e retorna pagina de sucesso."""
     body_params: dict[str, list[str]] = {}
     if request.method == "POST":
@@ -160,14 +160,19 @@ async def auth_callback(request: Request) -> JSONResponse:
     json_path = save_profile_json(profile)
     latest_email = fetch_latest_sent_email(access_token)
 
-    response = JSONResponse(
-        content={
-            "status": "ok",
-            "user": profile,
-            "latest_sent_email": latest_email,
-            "profile_json_path": json_path,
-        }
-    )
+    response_mode = request.query_params.get("mode", "redirect").lower()
+    if response_mode == "json":
+        response = JSONResponse(
+            content={
+                "status": "ok",
+                "user": profile,
+                "latest_sent_email": latest_email,
+                "profile_json_path": json_path,
+            }
+        )
+    else:
+        response = RedirectResponse(url="/?welcome=1", status_code=302)
+
     response.set_cookie(
         key="local_session_id",
         value=local_session_id,

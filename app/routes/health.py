@@ -94,6 +94,26 @@ def root() -> HTMLResponse:
                 padding: 1px 6px;
             }}
             .footer {{ margin-top: 10px; font-size: .95rem; color: var(--muted); }}
+            .profile {{
+                margin-top: 14px;
+                background: rgba(255, 255, 255, 0.72);
+                border: 1px solid var(--line);
+                border-radius: 12px;
+                padding: 12px;
+                display: none;
+                align-items: center;
+                gap: 10px;
+            }}
+            .profile img {{
+                width: 56px;
+                height: 56px;
+                border-radius: 50%;
+                object-fit: cover;
+                border: 2px solid #f1e2d2;
+                background: #fff;
+            }}
+            .profile .meta {{ line-height: 1.35; }}
+            .profile .meta strong {{ display: block; }}
         </style>
     </head>
     <body>
@@ -105,6 +125,13 @@ def root() -> HTMLResponse:
                     <a class="btn" href="{login_url}">Conectar Outlook (/auth/login)</a>
                     <a class="btn alt" href="{wa_link}" target="_blank" rel="noreferrer">Abrir WhatsApp (login)</a>
                     <a class="btn" href="/docs">Ver Swagger (/docs)</a>
+                </div>
+                <div id="profile-box" class="profile" aria-live="polite">
+                    <img id="profile-photo" src="" alt="Foto de perfil" />
+                    <div class="meta">
+                        <strong id="profile-name">Perfil autenticado</strong>
+                        <span id="profile-email">Carregando dados do Outlook...</span>
+                    </div>
                 </div>
             </section>
 
@@ -144,6 +171,41 @@ def root() -> HTMLResponse:
                 </article>
             </section>
         </main>
+        <script>
+            (async () => {{
+                const params = new URLSearchParams(window.location.search);
+                const box = document.getElementById("profile-box");
+                const nameEl = document.getElementById("profile-name");
+                const emailEl = document.getElementById("profile-email");
+                const photoEl = document.getElementById("profile-photo");
+
+                try {{
+                    const profileResp = await fetch("/profile", {{ credentials: "include" }});
+                    if (!profileResp.ok) return;
+
+                    const profile = await profileResp.json();
+                    const name = profile.displayName || "Usuario autenticado";
+                    const email = profile.mail || profile.userPrincipalName || "sem-email";
+                    nameEl.textContent = name;
+                    emailEl.textContent = email;
+                    box.style.display = "flex";
+
+                    const photoResp = await fetch("/profile/photo", {{ credentials: "include" }});
+                    if (photoResp.ok) {{
+                        const blob = await photoResp.blob();
+                        photoEl.src = URL.createObjectURL(blob);
+                    }} else {{
+                        photoEl.style.display = "none";
+                    }}
+
+                    if (params.get("welcome") === "1") {{
+                        emailEl.textContent = `${{email}} · login concluido com sucesso`;
+                    }}
+                }} catch (_error) {{
+                    return;
+                }}
+            }})();
+        </script>
     </body>
 </html>
 """
