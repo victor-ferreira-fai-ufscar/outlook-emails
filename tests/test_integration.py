@@ -784,3 +784,29 @@ def test_whatsapp_webhook_ignores_messages_sent_by_self(monkeypatch):
     assert response.status_code == 200
     assert response.json()["ignored"] is True
     send_mock.assert_not_called()
+
+
+def test_whatsapp_webhook_accepts_messages_sent_by_self_when_enabled(monkeypatch):
+    monkeypatch.setattr("app.routes.whatsapp.WHATSAPP_ALLOW_FROM_ME", True)
+    send_mock = MagicMock(return_value={"ok": True, "status_code": 201})
+    monkeypatch.setattr(
+        "app.routes.whatsapp.send_whatsapp_via_evolution_api", send_mock
+    )
+
+    response = client.post(
+        "/whatsapp/webhook",
+        json={
+            "event": "messages.upsert",
+            "data": {
+                "key": {
+                    "remoteJid": "5511999999999@s.whatsapp.net",
+                    "fromMe": True,
+                },
+                "message": {"conversation": "ajuda"},
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+    send_mock.assert_called_once()

@@ -8,6 +8,7 @@ from app.config import (
     EVOLUTION_WEBHOOK_SECRET,
     SUMMARY_TOP_N,
     SUMMARY_WINDOW_HOURS,
+    WHATSAPP_ALLOW_FROM_ME,
 )
 from app.supabase_client import get_user_id_by_whatsapp_number, get_user_settings
 from app.utils import (
@@ -173,7 +174,7 @@ def whatsapp_webhook(payload: dict, request: Request) -> dict:
     if payload.get("event") != "messages.upsert":
         return {"status": "ok", "ignored": True, "reason": "unsupported_event"}
 
-    if _is_from_me(payload):
+    if _is_from_me(payload) and not WHATSAPP_ALLOW_FROM_ME:
         return {"status": "ok", "ignored": True, "reason": "from_me"}
 
     data = payload.get("data") or {}

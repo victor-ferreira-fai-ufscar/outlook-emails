@@ -38,6 +38,13 @@ docker compose -f docker-compose.dev.yml ps
 docker compose -f docker-compose.dev.yml down --remove-orphans
 ```
 
+6- Para reiniciar so a API (apos mudar variaveis no `.env`, por exemplo):
+
+```bash
+docker compose -f docker-compose.dev.yml stop api
+docker compose -f docker-compose.dev.yml up -d --build api
+```
+
 Observacao: `docker-compose.yml` continua como alias de desenvolvimento para compatibilidade, mas para evitar duvidas prefira usar explicitamente `docker-compose.dev.yml`.
 
 ## Stack
@@ -131,6 +138,13 @@ Para parar:
 
 ```bash
 docker compose -f docker-compose.prod.yml down --remove-orphans
+```
+
+Para reiniciar so a API em producao:
+
+```bash
+docker compose -f docker-compose.prod.yml stop api
+docker compose -f docker-compose.prod.yml up -d --build api
 ```
 
 Aplicacao em: `http://localhost:8000`
