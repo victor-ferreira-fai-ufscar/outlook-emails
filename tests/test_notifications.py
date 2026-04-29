@@ -177,7 +177,7 @@ def test_notifications_daily_summary_returns_summary_and_delivery(monkeypatch):
     )
     monkeypatch.setattr(
         "app.routes.notifications.fetch_unread_inbox_emails",
-        lambda access_token, window_hours=24, max_items=10: [
+        lambda access_token, window_hours=24, max_items=10, include_read=False: [
             {
                 "subject": "Urgente: revisar contrato",
                 "sender_name": "Diretoria",
@@ -190,7 +190,7 @@ def test_notifications_daily_summary_returns_summary_and_delivery(monkeypatch):
     )
     monkeypatch.setattr(
         "app.routes.notifications.format_daily_email_summary",
-        lambda emails, top_n=10: "Resumo pronto",
+        lambda emails, top_n=10, include_read=False: "Resumo pronto",
     )
     monkeypatch.setattr(
         "app.routes.notifications.send_whatsapp_via_callmebot",
@@ -207,3 +207,115 @@ def test_notifications_daily_summary_returns_summary_and_delivery(monkeypatch):
     assert body["emails_processed"] == 1
     assert body["delivery"]["ok"] is True
     assert body["summary_preview"] == "Resumo pronto"
+
+
+def test_notifications_daily_summary_accepts_local_session_cookie(monkeypatch):
+    monkeypatch.setattr("app.routes.notifications.NOTIFICATIONS_REQUIRE_AUTH", True)
+    monkeypatch.setattr(
+        "app.routes.notifications.NOTIFICATIONS_AUTOMATION_TOKEN", "secret-token"
+    )
+
+    monkeypatch.setattr(
+        "app.routes.notifications.get_local_access_token", lambda request: "token"
+    )
+    monkeypatch.setattr(
+        "app.routes.notifications.fetch_unread_inbox_emails",
+        lambda access_token, window_hours=24, max_items=10, include_read=False: [],
+    )
+    monkeypatch.setattr(
+        "app.routes.notifications.format_daily_email_summary",
+        lambda emails, top_n=10, include_read=False: "Sem emails",
+    )
+    monkeypatch.setattr(
+        "app.routes.notifications.send_whatsapp_via_callmebot",
+        lambda message: {"ok": True, "status_code": 200, "provider_response": "OK"},
+    )
+
+    response = client.post(
+        "/notifications/daily-summary",
+        cookies={"local_session_id": "session-id"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["delivery"]["ok"] is True
+
+
+def test_notifications_command_send_summary_now(monkeypatch):
+    monkeypatch.setattr("app.routes.notifications.NOTIFICATIONS_REQUIRE_AUTH", True)
+    monkeypatch.setattr(
+        "app.routes.notifications.get_local_access_token", lambda request: "token"
+    )
+    monkeypatch.setattr(
+        "app.routes.notifications.fetch_unread_inbox_emails",
+        lambda access_token, window_hours=24, max_items=10, include_read=False: [
+            {"subject": "Assunto", "priority": "media"}
+        ],
+    )
+    monkeypatch.setattr(
+        "app.routes.notifications.format_daily_email_summary",
+        lambda emails, top_n=10, include_read=False: "Resumo agora",
+    )
+    monkeypatch.setattr(
+        "app.routes.notifications.send_whatsapp_via_callmebot",
+        lambda message: {"ok": True, "status_code": 200, "provider_response": "OK"},
+    )
+
+    response = client.post(
+        "/notifications/command",
+        json={"action": "send_summary_now"},
+        cookies={"local_session_id": "session-id"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+    assert response.json()["result"]["summary_preview"] == "Resumo agora"
+
+
+def test_notifications_settings_roundtrip(monkeypatch):
+    monkeypatch.setattr("app.routes.notifications.NOTIFICATIONS_REQUIRE_AUTH", True)
+    monkeypatch.setattr(
+        "app.routes.notifications.get_local_access_token", lambda request: "token"
+    )
+
+    monkeypatch.setattr(
+        "app.routes.notifications.get_user_settings",
+        lambda user_id: {
+            "user_id": user_id,
+            "max_emails_in_summary": 10,
+            "include_read_emails": False,
+            "preferred_channel": "whatsapp",
+            "priority_senders": [],
+        },
+    )
+
+    monkeypatch.setattr(
+        "app.routes.notifications.save_user_settings",
+        lambda user_id, settings: {
+            "user_id": user_id,
+            "max_emails_in_summary": settings["max_emails_in_summary"],
+            "include_read_emails": settings["include_read_emails"],
+            "preferred_channel": settings["preferred_channel"],
+            "priority_senders": settings["priority_senders"],
+        },
+    )
+
+    get_response = client.get(
+        "/notifications/settings",
+        cookies={"local_session_id": "session-id"},
+    )
+    assert get_response.status_code == 200
+    assert get_response.json()["settings"]["max_emails_in_summary"] == 10
+
+    put_response = client.put(
+        "/notifications/settings",
+        cookies={"local_session_id": "session-id"},
+        json={
+            "max_emails_in_summary": 5,
+            "include_read_emails": True,
+            "preferred_channel": "whatsapp",
+            "priority_senders": ["chefia@fai.ufscar.br"],
+        },
+    )
+    assert put_response.status_code == 200
+    assert put_response.json()["settings"]["max_emails_in_summary"] == 5
+    assert put_response.json()["settings"]["include_read_emails"] is True

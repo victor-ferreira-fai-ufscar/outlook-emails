@@ -154,11 +154,15 @@ def _priority_from_message(raw_email: dict[str, Any]) -> str:
 
 
 def fetch_unread_inbox_emails(
-    access_token: str, window_hours: int = 24, max_items: int = 20
+    access_token: str,
+    window_hours: int = 24,
+    max_items: int = 20,
+    include_read: bool = False,
 ) -> list[dict[str, Any]]:
     """Busca e-mails não lidos da inbox nas últimas horas informadas."""
     since = datetime.now(timezone.utc) - timedelta(hours=window_hours)
     since_iso = since.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    read_filter = "" if include_read else "isRead eq false and "
 
     response = requests.get(
         f"{GRAPH_BASE_URL}/me/messages",
@@ -166,7 +170,7 @@ def fetch_unread_inbox_emails(
         params={
             "$top": str(max_items),
             "$orderby": "receivedDateTime desc",
-            "$filter": f"isRead eq false and receivedDateTime ge {since_iso}",
+            "$filter": f"{read_filter}receivedDateTime ge {since_iso}",
             "$select": "id,subject,from,receivedDateTime,bodyPreview,importance,isRead",
         },
         timeout=30,
@@ -199,7 +203,9 @@ def fetch_unread_inbox_emails(
     return normalized
 
 
-def format_daily_email_summary(emails: list[dict[str, Any]], top_n: int = 10) -> str:
+def format_daily_email_summary(
+    emails: list[dict[str, Any]], top_n: int = 10, include_read: bool = False
+) -> str:
     """Monta resumo textual para envio diário no WhatsApp."""
     if not emails:
         return "Nenhum email novo nao lido nas ultimas 24 horas."
@@ -214,7 +220,7 @@ def format_daily_email_summary(emails: list[dict[str, Any]], top_n: int = 10) ->
 
     lines = [
         "Resumo diario de emails",
-        f"Total de nao lidos (24h): {len(emails)}",
+        f"Total de {'emails' if include_read else 'nao lidos'} (24h): {len(emails)}",
         f"Urgente: {counts['urgente']} | Media: {counts['media']} | Baixa: {counts['baixa']}",
         "",
         "Principais emails:",
