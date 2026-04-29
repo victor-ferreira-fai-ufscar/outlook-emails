@@ -64,6 +64,19 @@ def test_root_returns_200():
     assert "next_step" in body
 
 
+def test_root_includes_quickstart_tutorial():
+    response = client.get("/")
+    assert response.status_code == 200
+    body = response.json()
+
+    assert "quickstart" in body
+    assert "steps" in body["quickstart"]
+    assert len(body["quickstart"]["steps"]) >= 4
+    assert any("auth/login" in step for step in body["quickstart"]["steps"])
+    assert "whatsapp_commands" in body
+    assert "ajuda" in body["whatsapp_commands"]
+
+
 def test_swagger_docs_endpoint_is_available():
     response = client.get("/docs")
     assert response.status_code == 200
