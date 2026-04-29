@@ -104,7 +104,11 @@ Endpoints disponiveis:
 - `GET /profile` consulta perfil atual
 - `GET /profile/export` exporta novo JSON do perfil
 - `GET /messages/sent/latest` retorna o ultimo e-mail enviado
-- `POST /notifications/daily-summary` gera resumo diario de emails nao lidos e envia no WhatsApp (CallMeBot)
+- `POST /notifications/daily-summary` gera resumo diario de emails e envia no WhatsApp via Evolution API
+- `POST /notifications/command` executa comando on-demand (`send_summary_now`)
+- `GET /notifications/settings` consulta preferencias de notificacao
+- `PUT /notifications/settings` atualiza preferencias de notificacao
+- `POST /whatsapp/webhook` recebe comandos inbound do WhatsApp via Evolution API
 - `GET /bot/health` status do modulo de bot (Teams)
 - `POST /bot/messages` webhook inicial para comandos (`ajuda`, `login`, `status`, `logout`)
 
@@ -115,12 +119,14 @@ Fluxo implementado:
 1. Le e-mails nao lidos das ultimas 24h no Outlook (Graph API)
 2. Classifica prioridade por regras simples (urgente/media/baixa)
 3. Gera resumo textual
-4. Envia no WhatsApp via CallMeBot
+4. Envia no WhatsApp via Evolution API
 
 Variaveis necessarias no `.env`:
 
-- `CALLMEBOT_PHONE`
-- `CALLMEBOT_API_KEY`
+- `EVOLUTION_API_URL`
+- `EVOLUTION_API_KEY`
+- `EVOLUTION_INSTANCE`
+- `EVOLUTION_DEFAULT_NUMBER`
 - `NOTIFICATIONS_AUTOMATION_TOKEN`
 
 Opcional:
@@ -133,6 +139,34 @@ Exemplo de disparo manual (apos autenticar em `/auth/login`):
 curl -X POST http://localhost:8000/notifications/daily-summary \
   -H "Authorization: Bearer ${NOTIFICATIONS_AUTOMATION_TOKEN}"
 ```
+
+Exemplo de comando HTTP on-demand:
+
+```bash
+curl -X POST http://localhost:8000/notifications/command \
+  -H "Content-Type: application/json" \
+  --cookie "local_session_id=<seu-session-id>" \
+  -d '{"action": "send_summary_now"}'
+```
+
+## Comandos pelo WhatsApp com Evolution API
+
+Fluxo implementado:
+
+1. A Evolution API entrega eventos `messages.upsert` para `POST /whatsapp/webhook`
+2. O backend extrai o texto recebido e identifica o comando
+3. O backend responde para o mesmo numero via `POST /message/sendText/{instance}`
+
+Comandos suportados no chat:
+
+- `ajuda`
+- `login`
+- `status`
+- `perfil`
+- `ultimo-email`
+- `resumo agora`
+
+Para habilitar o inbound, configure na Evolution API o webhook do evento `messages.upsert` apontando para a URL deste backend.
 
 ## Agendamento diario com GitHub Actions
 

@@ -18,7 +18,7 @@ from app.utils import (
     format_daily_email_summary,
     get_latest_local_access_token,
     get_local_access_token,
-    send_whatsapp_via_callmebot,
+    send_whatsapp_via_evolution_api,
 )
 from app.supabase_client import get_user_settings, save_user_settings
 
@@ -106,7 +106,7 @@ def _build_daily_summary(access_token: str, user_settings: dict) -> dict:
         top_n=min(SUMMARY_TOP_N, max_items),
         include_read=include_read,
     )
-    delivery = send_whatsapp_via_callmebot(summary_text)
+    delivery = send_whatsapp_via_evolution_api(summary_text)
 
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),

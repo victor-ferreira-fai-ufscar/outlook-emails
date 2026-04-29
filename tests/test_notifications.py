@@ -10,7 +10,7 @@ from app.main import app
 from app.utils import (
     fetch_unread_inbox_emails,
     format_daily_email_summary,
-    send_whatsapp_via_callmebot,
+    send_whatsapp_via_evolution_api,
 )
 
 client = TestClient(app, raise_server_exceptions=False)
@@ -106,52 +106,56 @@ def test_format_daily_email_summary_handles_empty_input():
     assert "Nenhum email novo nao lido nas ultimas 24 horas" in summary
 
 
-def test_send_whatsapp_via_callmebot_success(monkeypatch):
-    monkeypatch.setattr(
-        "app.utils.CALLMEBOT_API_URL", "https://api.callmebot.com/whatsapp.php"
-    )
-    monkeypatch.setattr("app.utils.CALLMEBOT_PHONE", "5511999999999")
-    monkeypatch.setattr("app.utils.CALLMEBOT_API_KEY", "abc123")
+def test_send_whatsapp_via_evolution_api_success(monkeypatch):
+    monkeypatch.setattr("app.utils.EVOLUTION_API_URL", "https://evolution.example")
+    monkeypatch.setattr("app.utils.EVOLUTION_API_KEY", "abc123")
+    monkeypatch.setattr("app.utils.EVOLUTION_INSTANCE", "outlook-bot")
+    monkeypatch.setattr("app.utils.EVOLUTION_DEFAULT_NUMBER", "5511999999999")
 
     mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.text = "OK"
+    mock_response.status_code = 201
+    mock_response.json.return_value = {"status": "PENDING"}
 
-    with patch("app.utils.requests.get", return_value=mock_response) as mock_get:
-        result = send_whatsapp_via_callmebot("Resumo diario")
+    with patch("app.utils.requests.post", return_value=mock_response) as mock_post:
+        result = send_whatsapp_via_evolution_api("Resumo diario")
 
     assert result["ok"] is True
-    assert result["status_code"] == 200
-    assert "phone" in mock_get.call_args.kwargs["params"]
+    assert result["status_code"] == 201
+    assert (
+        mock_post.call_args.args[0]
+        == "https://evolution.example/message/sendText/outlook-bot"
+    )
+    assert mock_post.call_args.kwargs["headers"]["apikey"] == "abc123"
+    assert mock_post.call_args.kwargs["json"]["number"] == "5511999999999"
+    assert mock_post.call_args.kwargs["json"]["text"] == "Resumo diario"
 
 
-def test_send_whatsapp_via_callmebot_raises_when_not_configured(monkeypatch):
-    monkeypatch.setattr("app.utils.CALLMEBOT_PHONE", "")
+def test_send_whatsapp_via_evolution_api_raises_when_not_configured(monkeypatch):
+    monkeypatch.setattr("app.utils.EVOLUTION_API_URL", "")
 
     from fastapi import HTTPException
 
     with pytest.raises(HTTPException) as exc_info:
-        send_whatsapp_via_callmebot("Resumo diario")
+        send_whatsapp_via_evolution_api("Resumo diario")
 
     assert exc_info.value.status_code == 500
 
 
-def test_send_whatsapp_via_callmebot_raises_on_provider_error(monkeypatch):
-    monkeypatch.setattr(
-        "app.utils.CALLMEBOT_API_URL", "https://api.callmebot.com/whatsapp.php"
-    )
-    monkeypatch.setattr("app.utils.CALLMEBOT_PHONE", "5511999999999")
-    monkeypatch.setattr("app.utils.CALLMEBOT_API_KEY", "abc123")
+def test_send_whatsapp_via_evolution_api_raises_on_provider_error(monkeypatch):
+    monkeypatch.setattr("app.utils.EVOLUTION_API_URL", "https://evolution.example")
+    monkeypatch.setattr("app.utils.EVOLUTION_API_KEY", "abc123")
+    monkeypatch.setattr("app.utils.EVOLUTION_INSTANCE", "outlook-bot")
+    monkeypatch.setattr("app.utils.EVOLUTION_DEFAULT_NUMBER", "5511999999999")
 
     mock_response = MagicMock()
-    mock_response.status_code = 429
-    mock_response.text = "Too Many Requests"
+    mock_response.status_code = 500
+    mock_response.text = "Internal Server Error"
 
-    with patch("app.utils.requests.get", return_value=mock_response):
+    with patch("app.utils.requests.post", return_value=mock_response):
         from fastapi import HTTPException
 
         with pytest.raises(HTTPException) as exc_info:
-            send_whatsapp_via_callmebot("Resumo diario")
+            send_whatsapp_via_evolution_api("Resumo diario")
 
     assert exc_info.value.status_code == 502
 
@@ -193,7 +197,7 @@ def test_notifications_daily_summary_returns_summary_and_delivery(monkeypatch):
         lambda emails, top_n=10, include_read=False: "Resumo pronto",
     )
     monkeypatch.setattr(
-        "app.routes.notifications.send_whatsapp_via_callmebot",
+        "app.routes.notifications.send_whatsapp_via_evolution_api",
         lambda message: {"ok": True, "status_code": 200, "provider_response": "OK"},
     )
 
@@ -227,7 +231,7 @@ def test_notifications_daily_summary_accepts_local_session_cookie(monkeypatch):
         lambda emails, top_n=10, include_read=False: "Sem emails",
     )
     monkeypatch.setattr(
-        "app.routes.notifications.send_whatsapp_via_callmebot",
+        "app.routes.notifications.send_whatsapp_via_evolution_api",
         lambda message: {"ok": True, "status_code": 200, "provider_response": "OK"},
     )
 
@@ -256,7 +260,7 @@ def test_notifications_command_send_summary_now(monkeypatch):
         lambda emails, top_n=10, include_read=False: "Resumo agora",
     )
     monkeypatch.setattr(
-        "app.routes.notifications.send_whatsapp_via_callmebot",
+        "app.routes.notifications.send_whatsapp_via_evolution_api",
         lambda message: {"ok": True, "status_code": 200, "provider_response": "OK"},
     )
 

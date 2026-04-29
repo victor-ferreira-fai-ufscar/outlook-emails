@@ -12,10 +12,11 @@ import requests
 from fastapi import HTTPException
 
 from app.config import (
-    CALLMEBOT_API_KEY,
-    CALLMEBOT_API_URL,
-    CALLMEBOT_PHONE,
-    CALLMEBOT_TIMEOUT_SECONDS,
+    EVOLUTION_API_KEY,
+    EVOLUTION_API_URL,
+    EVOLUTION_DEFAULT_NUMBER,
+    EVOLUTION_INSTANCE,
+    EVOLUTION_TIMEOUT_SECONDS,
     GRAPH_BASE_URL,
     GRAPH_SCOPES,
     MS_CLIENT_ID,
@@ -236,34 +237,55 @@ def format_daily_email_summary(
     return "\n".join(lines)
 
 
-def send_whatsapp_via_callmebot(message: str) -> dict[str, Any]:
-    """Envia mensagem pelo provedor CallMeBot."""
-    if not CALLMEBOT_PHONE or not CALLMEBOT_API_KEY:
+def normalize_whatsapp_number(number: str) -> str:
+    """Normaliza numero/JID do WhatsApp para o formato aceito pela Evolution."""
+    if not number:
+        return ""
+
+    normalized = str(number).split("@", 1)[0]
+    return "".join(ch for ch in normalized if ch.isdigit())
+
+
+def send_whatsapp_via_evolution_api(
+    message: str, number: str | None = None
+) -> dict[str, Any]:
+    """Envia mensagem via endpoint sendText da Evolution API."""
+    recipient = normalize_whatsapp_number(number or EVOLUTION_DEFAULT_NUMBER)
+    if (
+        not EVOLUTION_API_URL
+        or not EVOLUTION_API_KEY
+        or not EVOLUTION_INSTANCE
+        or not recipient
+    ):
         raise HTTPException(
             status_code=500,
-            detail="Configure CALLMEBOT_PHONE and CALLMEBOT_API_KEY in environment.",
+            detail="Configure EVOLUTION_API_URL, EVOLUTION_API_KEY, EVOLUTION_INSTANCE and EVOLUTION_DEFAULT_NUMBER in environment.",
         )
 
-    response = requests.get(
-        CALLMEBOT_API_URL,
-        params={
-            "phone": CALLMEBOT_PHONE,
-            "text": message,
-            "apikey": CALLMEBOT_API_KEY,
-        },
-        timeout=CALLMEBOT_TIMEOUT_SECONDS,
+    base_url = EVOLUTION_API_URL.rstrip("/")
+    response = requests.post(
+        f"{base_url}/message/sendText/{EVOLUTION_INSTANCE}",
+        headers={"apikey": EVOLUTION_API_KEY, "Content-Type": "application/json"},
+        json={"number": recipient, "text": message},
+        timeout=EVOLUTION_TIMEOUT_SECONDS,
     )
 
     if response.status_code >= 400:
         raise HTTPException(
             status_code=502,
-            detail=f"CallMeBot error ({response.status_code}): {response.text}",
+            detail=f"Evolution API error ({response.status_code}): {response.text}",
         )
+
+    provider_response = response.text
+    try:
+        provider_response = response.json()
+    except Exception:
+        provider_response = response.text
 
     return {
         "ok": True,
         "status_code": response.status_code,
-        "provider_response": response.text,
+        "provider_response": provider_response,
     }
 
 

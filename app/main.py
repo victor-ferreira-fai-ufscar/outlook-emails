@@ -15,7 +15,7 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from scalar_fastapi import get_scalar_api_reference
 
-from app.routes import health, auth, profile, messages, bot, notifications
+from app.routes import health, auth, profile, messages, bot, notifications, whatsapp
 
 app = FastAPI(
     title="Outlook Profile Integration",
@@ -43,3 +43,4 @@ app.include_router(profile.router)
 app.include_router(messages.router)
 app.include_router(bot.router)
 app.include_router(notifications.router)
+app.include_router(whatsapp.router)

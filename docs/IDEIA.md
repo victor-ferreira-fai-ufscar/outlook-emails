@@ -23,7 +23,7 @@ Foco: <roziane.barbosa@fai.ufscar.br> (e supervisores)
   - <https://fastapi.tiangolo.com/>
   - Deploy: <https://dashboard.render.com/web/srv-d7nmq0e7r5hc73aus560>
   - Banco de dados: <https://supabase.com/dashboard/project/uuqnlnjfkhrkpfpgwuin>
-  - Envio no WhatsApp: <https://www.callmebot.com/blog/free-api-whatsapp-messages/>
+  - Envio e comandos no WhatsApp: <https://github.com/EvolutionAPI/evolution-api>
   - Gerenciar permissões: <https://portal.azure.com>
 
 ## Minha escrita/rascunho

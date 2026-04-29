@@ -551,3 +551,113 @@ def test_bot_messages_rejects_invalid_channel(monkeypatch):
         json={"type": "message", "text": "ajuda", "channelId": "slack"},
     )
     assert response.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# WhatsApp / Evolution webhook
+# ---------------------------------------------------------------------------
+
+
+def test_whatsapp_webhook_help_command_replies_back(monkeypatch):
+    send_mock = MagicMock(return_value={"ok": True, "status_code": 201})
+    monkeypatch.setattr(
+        "app.routes.whatsapp.send_whatsapp_via_evolution_api", send_mock
+    )
+
+    response = client.post(
+        "/whatsapp/webhook",
+        json={
+            "event": "messages.upsert",
+            "data": {
+                "key": {
+                    "remoteJid": "5511999999999@s.whatsapp.net",
+                    "fromMe": False,
+                },
+                "pushName": "Victor",
+                "message": {"conversation": "ajuda"},
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+    send_mock.assert_called_once()
+    assert send_mock.call_args.kwargs["number"] == "5511999999999"
+
+
+def test_whatsapp_webhook_summary_command_sends_summary(monkeypatch):
+    monkeypatch.setattr(
+        "app.routes.whatsapp.get_latest_local_access_token", lambda: "token"
+    )
+    monkeypatch.setattr(
+        "app.routes.whatsapp.get_user_settings",
+        lambda user_id: {
+            "user_id": user_id,
+            "max_emails_in_summary": 10,
+            "include_read_emails": False,
+            "preferred_channel": "whatsapp",
+            "priority_senders": [],
+        },
+    )
+    monkeypatch.setattr(
+        "app.routes.whatsapp.fetch_unread_inbox_emails",
+        lambda access_token, window_hours=24, max_items=10, include_read=False: [
+            {
+                "subject": "Urgente",
+                "priority": "urgente",
+                "sender_name": "Diretoria",
+                "received_at": "2026-04-29T10:00:00Z",
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        "app.routes.whatsapp.format_daily_email_summary",
+        lambda emails, top_n=10, include_read=False: "Resumo enviado",
+    )
+    send_mock = MagicMock(return_value={"ok": True, "status_code": 201})
+    monkeypatch.setattr(
+        "app.routes.whatsapp.send_whatsapp_via_evolution_api", send_mock
+    )
+
+    response = client.post(
+        "/whatsapp/webhook",
+        json={
+            "event": "messages.upsert",
+            "data": {
+                "key": {
+                    "remoteJid": "5511999999999@s.whatsapp.net",
+                    "fromMe": False,
+                },
+                "message": {"extendedTextMessage": {"text": "resumo agora"}},
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+    assert send_mock.call_args.kwargs["message"] == "Resumo enviado"
+
+
+def test_whatsapp_webhook_ignores_messages_sent_by_self(monkeypatch):
+    send_mock = MagicMock()
+    monkeypatch.setattr(
+        "app.routes.whatsapp.send_whatsapp_via_evolution_api", send_mock
+    )
+
+    response = client.post(
+        "/whatsapp/webhook",
+        json={
+            "event": "messages.upsert",
+            "data": {
+                "key": {
+                    "remoteJid": "5511999999999@s.whatsapp.net",
+                    "fromMe": True,
+                },
+                "message": {"conversation": "ajuda"},
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["ignored"] is True
+    send_mock.assert_not_called()
