@@ -27,3 +27,11 @@ create table if not exists public.user_settings (
 );
 
 create index if not exists user_settings_updated_at_idx on public.user_settings (updated_at desc);
+
+create table if not exists public.whatsapp_links (
+  whatsapp_number text primary key,
+  user_id text not null,
+  updated_at timestamptz not null default now()
+);
+
+create unique index if not exists whatsapp_links_user_id_idx on public.whatsapp_links (user_id);

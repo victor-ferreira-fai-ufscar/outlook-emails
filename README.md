@@ -66,6 +66,12 @@ docker compose up --build
 
 Aplicacao em: `http://localhost:8000`
 
+Servicos adicionais desta stack:
+
+- Backend FastAPI: `http://localhost:8000`
+- Evolution API: `http://localhost:8080`
+- Evolution Manager: `http://localhost:3000`
+
 **Beneficios:**
 
 - Ambiente isolado e reproducível
@@ -139,6 +145,92 @@ Exemplo de disparo manual (apos autenticar em `/auth/login`):
 curl -X POST http://localhost:8000/notifications/daily-summary \
   -H "Authorization: Bearer ${NOTIFICATIONS_AUTOMATION_TOKEN}"
 ```
+
+## Rodando a Evolution API localmente
+
+Esta stack ja inclui a Evolution API, Redis, Postgres e o Manager web no mesmo `docker-compose.yml`.
+
+### 1. Preparar o `.env`
+
+Defina pelo menos:
+
+- `EVOLUTION_API_KEY`
+- `EVOLUTION_INSTANCE`
+- `EVOLUTION_DEFAULT_NUMBER`
+- `BOT_LOGIN_URL`
+
+Para ambiente local, estes valores funcionam bem:
+
+```env
+BOT_LOGIN_URL=http://localhost:8000/auth/login
+EVOLUTION_API_URL=http://localhost:8080
+EVOLUTION_API_KEY=troque-por-uma-chave-forte
+EVOLUTION_INSTANCE=outlook-emails
+EVOLUTION_DEFAULT_NUMBER=5511999999999
+```
+
+### 2. Subir os containers
+
+```bash
+docker compose up -d api evolution-postgres evolution-redis evolution-api evolution-manager
+```
+
+### 3. Abrir o painel da Evolution
+
+Abra:
+
+- `http://localhost:3000`
+
+Crie ou localize a instância com o mesmo nome configurado em `EVOLUTION_INSTANCE`.
+Neste projeto, o valor esperado e `outlook-emails`.
+
+### 4. Conectar o WhatsApp
+
+No Evolution Manager:
+
+1. Crie a instância `outlook-emails`, se ainda nao existir.
+2. Gere o QR Code.
+3. Escaneie com o WhatsApp que sera usado pelo bot.
+
+### 5. Validar a API da Evolution
+
+Teste o endpoint de envio direto:
+
+```bash
+curl -X POST http://localhost:8080/message/sendText/outlook-emails \
+  -H "Content-Type: application/json" \
+  -H "apikey: ${EVOLUTION_API_KEY}" \
+  -d '{"number": "5511999999999", "text": "teste evolution"}'
+```
+
+Se isso responder `201`, a Evolution esta pronta.
+
+### 6. Webhook inbound ja configurado
+
+O `docker-compose.yml` desta stack ja sobe a Evolution com webhook global apontando para:
+
+- `http://api:8000/whatsapp/webhook`
+
+Ou seja: quando a instância estiver conectada, mensagens recebidas no WhatsApp ja chegam automaticamente ao backend.
+
+## Vinculo entre WhatsApp e login Outlook
+
+Agora o fluxo ficou assim:
+
+1. O usuario manda `login` no WhatsApp.
+2. O bot responde com um link como `/auth/login?whatsapp=5511...`.
+3. O usuario autentica no Outlook.
+4. No callback OAuth, o backend vincula esse numero do WhatsApp ao `user_id` do Outlook.
+5. A partir desse momento, comandos como `status`, `perfil`, `ultimo-email` e `resumo agora` usam a sessao do usuario autenticado correto.
+
+Comandos suportados no chat:
+
+- `ajuda`
+- `login`
+- `status`
+- `perfil`
+- `ultimo-email`
+- `resumo agora`
 
 Exemplo de comando HTTP on-demand:
 

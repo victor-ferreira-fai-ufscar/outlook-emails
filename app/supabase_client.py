@@ -2,6 +2,8 @@
 
 from datetime import datetime, timezone
 from functools import lru_cache
+import json
+from pathlib import Path
 from typing import Any
 
 from fastapi import HTTPException
@@ -14,6 +16,45 @@ DEFAULT_USER_SETTINGS = {
     "preferred_channel": "whatsapp",
     "priority_senders": [],
 }
+
+
+def _normalize_whatsapp_number(number: str) -> str:
+    """Normaliza numero/JID para apenas digitos."""
+    if not number:
+        return ""
+    normalized = str(number).split("@", 1)[0]
+    return "".join(ch for ch in normalized if ch.isdigit())
+
+
+def _whatsapp_links_file() -> Path:
+    """Arquivo local de fallback para vinculos de WhatsApp."""
+    directory = Path("sessions")
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory / "whatsapp-links.json"
+
+
+def _read_local_whatsapp_links() -> dict[str, Any]:
+    """Le cache local de vinculos de WhatsApp."""
+    file_path = _whatsapp_links_file()
+    if not file_path.exists():
+        return {"numbers": {}, "users": {}}
+
+    try:
+        with file_path.open("r", encoding="utf-8") as fp:
+            data = json.load(fp)
+    except Exception:
+        return {"numbers": {}, "users": {}}
+
+    return {
+        "numbers": data.get("numbers", {}),
+        "users": data.get("users", {}),
+    }
+
+
+def _write_local_whatsapp_links(payload: dict[str, Any]) -> None:
+    """Escreve cache local de vinculos de WhatsApp."""
+    with _whatsapp_links_file().open("w", encoding="utf-8") as fp:
+        json.dump(payload, fp, indent=2, ensure_ascii=False)
 
 
 @lru_cache(maxsize=1)
@@ -109,3 +150,94 @@ def save_user_settings(user_id: str, settings: dict[str, Any]) -> dict[str, Any]
         return normalized
 
     return normalized
+
+
+def link_whatsapp_number_to_user(user_id: str, whatsapp_number: str) -> dict[str, str]:
+    """Vincula numero de WhatsApp ao usuario autenticado."""
+    normalized_number = _normalize_whatsapp_number(whatsapp_number)
+    record = {
+        "user_id": user_id,
+        "whatsapp_number": normalized_number,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    local_links = _read_local_whatsapp_links()
+    local_links["numbers"][normalized_number] = user_id
+    local_links["users"][user_id] = normalized_number
+    _write_local_whatsapp_links(local_links)
+
+    if SUPABASE_ENABLED:
+        try:
+            client = get_supabase_client()
+            client.table("whatsapp_links").upsert(
+                record, on_conflict="whatsapp_number"
+            ).execute()
+        except Exception:
+            pass
+
+    return record
+
+
+def get_user_id_by_whatsapp_number(whatsapp_number: str) -> str | None:
+    """Resolve usuario pelo numero de WhatsApp vinculado."""
+    normalized_number = _normalize_whatsapp_number(whatsapp_number)
+    local_links = _read_local_whatsapp_links()
+    local_hit = local_links["numbers"].get(normalized_number)
+    if local_hit:
+        return local_hit
+
+    if not SUPABASE_ENABLED:
+        return None
+
+    try:
+        client = get_supabase_client()
+        response = (
+            client.table("whatsapp_links")
+            .select("user_id")
+            .eq("whatsapp_number", normalized_number)
+            .limit(1)
+            .execute()
+        )
+        rows = response.data or []
+        if not rows:
+            return None
+        user_id = rows[0].get("user_id")
+        if user_id:
+            local_links["numbers"][normalized_number] = user_id
+            local_links["users"][user_id] = normalized_number
+            _write_local_whatsapp_links(local_links)
+        return user_id
+    except Exception:
+        return None
+
+
+def get_whatsapp_number_by_user_id(user_id: str) -> str | None:
+    """Resolve numero de WhatsApp pelo usuario autenticado."""
+    local_links = _read_local_whatsapp_links()
+    local_hit = local_links["users"].get(user_id)
+    if local_hit:
+        return local_hit
+
+    if not SUPABASE_ENABLED:
+        return None
+
+    try:
+        client = get_supabase_client()
+        response = (
+            client.table("whatsapp_links")
+            .select("whatsapp_number")
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+        rows = response.data or []
+        if not rows:
+            return None
+        number = rows[0].get("whatsapp_number")
+        if number:
+            local_links["numbers"][number] = user_id
+            local_links["users"][user_id] = number
+            _write_local_whatsapp_links(local_links)
+        return number
+    except Exception:
+        return None

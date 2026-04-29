@@ -1,6 +1,7 @@
 """Webhook inbound de WhatsApp via Evolution API."""
 
 from fastapi import APIRouter, HTTPException, Request
+from urllib.parse import urlencode, urlsplit, urlunsplit, parse_qsl
 
 from app.config import (
     BOT_LOGIN_URL,
@@ -8,8 +9,9 @@ from app.config import (
     SUMMARY_TOP_N,
     SUMMARY_WINDOW_HOURS,
 )
-from app.supabase_client import get_user_settings
+from app.supabase_client import get_user_id_by_whatsapp_number, get_user_settings
 from app.utils import (
+    get_access_token_for_user_id,
     fetch_latest_sent_email,
     fetch_outlook_profile,
     fetch_unread_inbox_emails,
@@ -66,8 +68,14 @@ def _enforce_webhook_secret_if_configured(request: Request) -> None:
 
 
 def _build_summary_for_number(number: str) -> str:
-    access_token = get_latest_local_access_token()
-    user_settings = get_user_settings(number)
+    user_id = get_user_id_by_whatsapp_number(number)
+    if not user_id:
+        return (
+            f"Numero ainda nao vinculado. Faça login aqui: {_build_login_url(number)}"
+        )
+
+    access_token = get_access_token_for_user_id(user_id)
+    user_settings = get_user_settings(user_id)
     max_items = int(user_settings.get("max_emails_in_summary", SUMMARY_TOP_N))
     include_read = bool(user_settings.get("include_read_emails", False))
     emails = fetch_unread_inbox_emails(
@@ -83,21 +91,47 @@ def _build_summary_for_number(number: str) -> str:
     )
 
 
-def _command_response(command: str) -> str:
+def _build_login_url(number: str) -> str:
+    """Monta link de login preservando o numero remetente para vinculo."""
+    parts = urlsplit(BOT_LOGIN_URL)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    query["whatsapp"] = number
+    return urlunsplit(
+        (parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment)
+    )
+
+
+def _command_response(command: str, sender_number: str) -> str:
     normalized = command.strip().lower()
 
     if normalized in {"ajuda", "help", "/help"}:
         return "Comandos disponiveis: ajuda, login, status, perfil, ultimo-email, resumo agora"
 
     if normalized in {"login", "entrar"}:
-        return f"Use este link para autenticar sua conta: {BOT_LOGIN_URL}"
+        return f"Use este link para autenticar sua conta: {_build_login_url(sender_number)}"
+
+    user_id = get_user_id_by_whatsapp_number(sender_number)
+    if (
+        normalized
+        in {
+            "status",
+            "perfil",
+            "profile",
+            "me",
+            "ultimo-email",
+            "último-email",
+            "latest-email",
+        }
+        and not user_id
+    ):
+        return f"Numero ainda nao vinculado. Faça login aqui: {_build_login_url(sender_number)}"
 
     if normalized == "status":
         try:
-            access_token = get_latest_local_access_token()
+            access_token = get_access_token_for_user_id(user_id)
             profile = fetch_outlook_profile(access_token)
         except HTTPException:
-            return f"Sem sessao ativa. Use o login: {BOT_LOGIN_URL}"
+            return f"Sem sessao ativa. Use o login: {_build_login_url(sender_number)}"
 
         user_email = (
             profile.get("mail") or profile.get("userPrincipalName") or "sem-email"
@@ -106,10 +140,10 @@ def _command_response(command: str) -> str:
 
     if normalized in {"perfil", "profile", "me"}:
         try:
-            access_token = get_latest_local_access_token()
+            access_token = get_access_token_for_user_id(user_id)
             profile = fetch_outlook_profile(access_token)
         except HTTPException:
-            return f"Sem sessao ativa. Use o login: {BOT_LOGIN_URL}"
+            return f"Sem sessao ativa. Use o login: {_build_login_url(sender_number)}"
 
         name = profile.get("displayName") or "Usuario"
         email = profile.get("mail") or profile.get("userPrincipalName") or "sem-email"
@@ -117,10 +151,10 @@ def _command_response(command: str) -> str:
 
     if normalized in {"ultimo-email", "último-email", "latest-email"}:
         try:
-            access_token = get_latest_local_access_token()
+            access_token = get_access_token_for_user_id(user_id)
             latest_email = fetch_latest_sent_email(access_token)
         except HTTPException:
-            return f"Sem sessao ativa. Use o login: {BOT_LOGIN_URL}"
+            return f"Sem sessao ativa. Use o login: {_build_login_url(sender_number)}"
 
         subject = latest_email.get("subject") or "(sem assunto)"
         return f"Ultimo email enviado: {subject}"
@@ -150,7 +184,7 @@ def whatsapp_webhook(payload: dict, request: Request) -> dict:
     if not sender_number or not text:
         return {"status": "ok", "ignored": True, "reason": "missing_sender_or_text"}
 
-    response_text = _command_response(text)
+    response_text = _command_response(text, sender_number)
     if response_text == "__SEND_SUMMARY__":
         response_text = _build_summary_for_number(sender_number)
 

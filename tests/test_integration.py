@@ -176,6 +176,35 @@ def test_auth_login_saves_flow_file(tmp_path):
     assert content["auth_flow"]["state"] == "flow-state-xyz"
 
 
+def test_auth_login_persists_whatsapp_number_in_flow(tmp_path):
+    fake_flow = {
+        "state": "flow-whatsapp-xyz",
+        "auth_uri": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?state=flow-whatsapp-xyz",
+        "redirect_uri": "http://testserver/auth/callback",
+        "scope": ["User.Read", "Mail.Read"],
+        "code_verifier": "verifier",
+        "nonce": "nonce",
+        "claims_challenge": None,
+    }
+
+    mock_msal = MagicMock()
+    mock_msal.initiate_auth_code_flow.return_value = fake_flow
+
+    with (
+        patch("app.utils.build_msal_app", return_value=mock_msal),
+        patch("app.routes.auth.MS_REDIRECT_URI", "http://testserver/auth/callback"),
+    ):
+        client.get(
+            "/auth/login?whatsapp=5511999999999",
+            follow_redirects=False,
+        )
+
+    flow_file = tmp_path / "sessions" / "flow-flow-whatsapp-xyz.json"
+    assert flow_file.exists()
+    content = json.loads(flow_file.read_text())
+    assert content["whatsapp_number"] == "5511999999999"
+
+
 # ---------------------------------------------------------------------------
 # POST /auth/callback
 # ---------------------------------------------------------------------------
@@ -251,6 +280,66 @@ def test_auth_callback_post_success(tmp_path):
     assert data["user"]["mail"] == "victor@example.com"
     assert data["latest_sent_email"]["subject"] == "Test Email"
     assert "local_session_id" in response.cookies
+
+
+def test_auth_callback_links_whatsapp_number_to_authenticated_user(tmp_path):
+    state = "test-state-whatsapp"
+    write_session_file(
+        f"flow-{state}.json",
+        {
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "whatsapp_number": "5511999999999",
+            "auth_flow": {
+                "state": state,
+                "redirect_uri": "http://localhost:8000/auth/callback",
+                "scope": ["User.Read", "Mail.Read"],
+                "code_verifier": "verifier",
+                "nonce": "nonce",
+                "claims_challenge": None,
+            },
+        },
+    )
+
+    fake_token = {
+        "access_token": "valid-token",
+        "expires_in": 3600,
+        "refresh_token": "refresh-token",
+        "token_type": "Bearer",
+    }
+    fake_profile = {
+        "id": "user-123",
+        "displayName": "Victor",
+        "mail": "victor@example.com",
+        "userPrincipalName": "victor@example.com",
+    }
+
+    mock_msal = MagicMock()
+    mock_msal.acquire_token_by_auth_code_flow.return_value = fake_token
+
+    mock_profile_resp = MagicMock()
+    mock_profile_resp.status_code = 200
+    mock_profile_resp.json.return_value = fake_profile
+
+    mock_email_resp = MagicMock()
+    mock_email_resp.status_code = 200
+    mock_email_resp.json.return_value = {"value": []}
+
+    with (
+        patch("app.utils.build_msal_app", return_value=mock_msal),
+        patch(
+            "app.utils.requests.get", side_effect=[mock_profile_resp, mock_email_resp]
+        ),
+    ):
+        response = client.post(
+            "/auth/callback",
+            content=f"code=test-code&state={state}",
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+
+    assert response.status_code == 200
+    from app.supabase_client import get_user_id_by_whatsapp_number
+
+    assert get_user_id_by_whatsapp_number("5511999999999") == "user-123"
 
 
 def test_auth_callback_missing_code_or_state():
@@ -585,9 +674,38 @@ def test_whatsapp_webhook_help_command_replies_back(monkeypatch):
     assert send_mock.call_args.kwargs["number"] == "5511999999999"
 
 
+def test_whatsapp_webhook_login_command_includes_sender_number(monkeypatch):
+    send_mock = MagicMock(return_value={"ok": True, "status_code": 201})
+    monkeypatch.setattr(
+        "app.routes.whatsapp.send_whatsapp_via_evolution_api", send_mock
+    )
+
+    response = client.post(
+        "/whatsapp/webhook",
+        json={
+            "event": "messages.upsert",
+            "data": {
+                "key": {
+                    "remoteJid": "5511999999999@s.whatsapp.net",
+                    "fromMe": False,
+                },
+                "message": {"conversation": "login"},
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    outbound = send_mock.call_args.kwargs["message"]
+    assert "whatsapp=5511999999999" in outbound
+
+
 def test_whatsapp_webhook_summary_command_sends_summary(monkeypatch):
     monkeypatch.setattr(
-        "app.routes.whatsapp.get_latest_local_access_token", lambda: "token"
+        "app.routes.whatsapp.get_access_token_for_user_id", lambda user_id: "token"
+    )
+    monkeypatch.setattr(
+        "app.routes.whatsapp.get_user_id_by_whatsapp_number",
+        lambda number: "user-123",
     )
     monkeypatch.setattr(
         "app.routes.whatsapp.get_user_settings",

@@ -59,6 +59,54 @@ def read_session_file(file_name: str) -> dict[str, Any] | None:
         return json.load(fp)
 
 
+def _refresh_session_access_token(
+    file_name: str, session_data: dict[str, Any]
+) -> tuple[str, dict[str, Any]]:
+    """Atualiza token expirado da sessao e devolve access token atual."""
+    access_token = session_data.get("access_token")
+    if not access_token:
+        raise HTTPException(
+            status_code=401,
+            detail="Local access token missing. Authenticate again at /auth/login.",
+        )
+
+    expires_at_raw = session_data.get("expires_at")
+    if expires_at_raw:
+        expires_at = datetime.fromisoformat(expires_at_raw)
+        if datetime.now(timezone.utc) >= expires_at - timedelta(seconds=60):
+            refresh_token = session_data.get("refresh_token")
+            if not refresh_token:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Session expired and no refresh token available. Authenticate again at /auth/login.",
+                )
+
+            msal_app = build_msal_app()
+            refreshed = msal_app.acquire_token_by_refresh_token(
+                refresh_token=refresh_token,
+                scopes=GRAPH_SCOPES,
+            )
+
+            if "access_token" not in refreshed:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Token refresh failed. Authenticate again at /auth/login.",
+                )
+
+            access_token = refreshed["access_token"]
+            new_expires_in: int = refreshed.get("expires_in", 3600)
+            session_data["access_token"] = access_token
+            session_data["expires_at"] = (
+                datetime.now(timezone.utc) + timedelta(seconds=new_expires_in)
+            ).isoformat()
+            session_data["refresh_token"] = refreshed.get(
+                "refresh_token", refresh_token
+            )
+            write_session_file(file_name=file_name, payload=session_data)
+
+    return access_token, session_data
+
+
 def build_msal_app() -> msal.ConfidentialClientApplication:
     """Constroi cliente MSAL para OAuth2."""
     if not MS_CLIENT_ID or not MS_CLIENT_SECRET:
@@ -391,50 +439,10 @@ def get_local_access_token(request) -> str:
             detail="Local session not found. Authenticate again at /auth/login.",
         )
 
-    access_token = session_data.get("access_token")
-    if not access_token:
-        raise HTTPException(
-            status_code=401,
-            detail="Local access token missing. Authenticate again at /auth/login.",
-        )
-
-    # Refresh token if expired or about to expire (within 60 seconds).
-    expires_at_raw = session_data.get("expires_at")
-    if expires_at_raw:
-        expires_at = datetime.fromisoformat(expires_at_raw)
-        if datetime.now(timezone.utc) >= expires_at - timedelta(seconds=60):
-            refresh_token = session_data.get("refresh_token")
-            if not refresh_token:
-                raise HTTPException(
-                    status_code=401,
-                    detail="Session expired and no refresh token available. Authenticate again at /auth/login.",
-                )
-
-            msal_app = build_msal_app()
-            refreshed = msal_app.acquire_token_by_refresh_token(
-                refresh_token=refresh_token,
-                scopes=GRAPH_SCOPES,
-            )
-
-            if "access_token" not in refreshed:
-                raise HTTPException(
-                    status_code=401,
-                    detail="Token refresh failed. Authenticate again at /auth/login.",
-                )
-
-            access_token = refreshed["access_token"]
-            new_expires_in: int = refreshed.get("expires_in", 3600)
-            session_data["access_token"] = access_token
-            session_data["expires_at"] = (
-                datetime.now(timezone.utc) + timedelta(seconds=new_expires_in)
-            ).isoformat()
-            session_data["refresh_token"] = refreshed.get(
-                "refresh_token", refresh_token
-            )
-            write_session_file(
-                file_name=f"session-{local_session_id}.json",
-                payload=session_data,
-            )
+    access_token, _ = _refresh_session_access_token(
+        file_name=f"session-{local_session_id}.json",
+        session_data=session_data,
+    )
 
     return access_token
 
@@ -461,45 +469,42 @@ def get_latest_local_access_token() -> str:
             detail="Sessao local invalida. Faça login novamente em /auth/login.",
         )
 
-    access_token = session_data.get("access_token")
-    if not access_token:
+    access_token, _ = _refresh_session_access_token(
+        file_name=latest_file.name,
+        session_data=session_data,
+    )
+
+    return access_token
+
+
+def get_access_token_for_user_id(user_id: str) -> str:
+    """Retorna access token da sessao mais recente vinculada a um user_id."""
+    matching_sessions: list[Path] = []
+    for session_file in sessions_dir().glob("session-*.json"):
+        session_data = read_session_file(session_file.name)
+        if session_data and session_data.get("user_id") == user_id:
+            matching_sessions.append(session_file)
+
+    if not matching_sessions:
         raise HTTPException(
             status_code=401,
-            detail="Token de acesso ausente na sessao local.",
+            detail="No session linked to this authenticated user. Authenticate again at /auth/login.",
         )
 
-    expires_at_raw = session_data.get("expires_at")
-    if expires_at_raw:
-        expires_at = datetime.fromisoformat(expires_at_raw)
-        if datetime.now(timezone.utc) >= expires_at - timedelta(seconds=60):
-            refresh_token = session_data.get("refresh_token")
-            if not refresh_token:
-                raise HTTPException(
-                    status_code=401,
-                    detail="Sessao expirada e sem refresh token. Faça login novamente.",
-                )
+    latest_file = sorted(
+        matching_sessions,
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )[0]
+    session_data = read_session_file(latest_file.name)
+    if not session_data:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid linked session. Authenticate again at /auth/login.",
+        )
 
-            msal_app = build_msal_app()
-            refreshed = msal_app.acquire_token_by_refresh_token(
-                refresh_token=refresh_token,
-                scopes=GRAPH_SCOPES,
-            )
-
-            if "access_token" not in refreshed:
-                raise HTTPException(
-                    status_code=401,
-                    detail="Falha ao atualizar token. Faça login novamente.",
-                )
-
-            access_token = refreshed["access_token"]
-            new_expires_in: int = refreshed.get("expires_in", 3600)
-            session_data["access_token"] = access_token
-            session_data["expires_at"] = (
-                datetime.now(timezone.utc) + timedelta(seconds=new_expires_in)
-            ).isoformat()
-            session_data["refresh_token"] = refreshed.get(
-                "refresh_token", refresh_token
-            )
-            write_session_file(file_name=latest_file.name, payload=session_data)
-
+    access_token, _ = _refresh_session_access_token(
+        file_name=latest_file.name,
+        session_data=session_data,
+    )
     return access_token

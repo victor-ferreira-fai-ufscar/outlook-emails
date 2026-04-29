@@ -15,10 +15,12 @@ import app.utils as utils
 from app.utils import (
     fetch_latest_sent_email,
     fetch_outlook_profile,
+    normalize_whatsapp_number,
     read_session_file,
     save_profile_json,
     write_session_file,
 )
+from app.supabase_client import link_whatsapp_number_to_user
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 public_router = APIRouter(tags=["authentication"])
@@ -49,6 +51,10 @@ def auth_login(request: Request) -> RedirectResponse:
         )
         return RedirectResponse(url=normalized_login_url, status_code=302)
 
+    whatsapp_number = normalize_whatsapp_number(
+        request.query_params.get("whatsapp", "")
+    )
+
     msal_app = utils.build_msal_app()
 
     auth_flow = msal_app.initiate_auth_code_flow(
@@ -64,6 +70,7 @@ def auth_login(request: Request) -> RedirectResponse:
         file_name=f"flow-{flow_state}.json",
         payload={
             "created_at": datetime.now(timezone.utc).isoformat(),
+            "whatsapp_number": whatsapp_number,
             "auth_flow": auth_flow,
         },
     )
@@ -125,21 +132,31 @@ async def auth_callback(request: Request) -> JSONResponse:
     expires_at = (
         datetime.now(timezone.utc) + timedelta(seconds=expires_in)
     ).isoformat()
+    whatsapp_number = normalize_whatsapp_number(flow_record.get("whatsapp_number", ""))
 
     local_session_id = str(uuid.uuid4())
+    session_payload = {
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "state": state,
+        "access_token": access_token,
+        "expires_at": expires_at,
+        "refresh_token": token_result.get("refresh_token"),
+        "token_result": token_result,
+    }
     write_session_file(
         file_name=f"session-{local_session_id}.json",
-        payload={
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "state": state,
-            "access_token": access_token,
-            "expires_at": expires_at,
-            "refresh_token": token_result.get("refresh_token"),
-            "token_result": token_result,
-        },
+        payload=session_payload,
     )
 
     profile = fetch_outlook_profile(access_token)
+    session_payload["user_id"] = profile.get("id")
+    if whatsapp_number:
+        session_payload["whatsapp_number"] = whatsapp_number
+        link_whatsapp_number_to_user(profile.get("id"), whatsapp_number)
+    write_session_file(
+        file_name=f"session-{local_session_id}.json",
+        payload=session_payload,
+    )
     json_path = save_profile_json(profile)
     latest_email = fetch_latest_sent_email(access_token)
 
