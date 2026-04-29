@@ -59,22 +59,17 @@ def _create_session(
 def test_root_returns_200():
     response = client.get("/")
     assert response.status_code == 200
-    body = response.json()
-    assert "message" in body
-    assert "next_step" in body
+    assert "text/html" in response.headers["content-type"]
+    assert "Onboarding" in response.text
 
 
-def test_root_includes_quickstart_tutorial():
+def test_root_includes_quickstart_tutorial_and_links():
     response = client.get("/")
     assert response.status_code == 200
-    body = response.json()
-
-    assert "quickstart" in body
-    assert "steps" in body["quickstart"]
-    assert len(body["quickstart"]["steps"]) >= 4
-    assert any("auth/login" in step for step in body["quickstart"]["steps"])
-    assert "whatsapp_commands" in body
-    assert "ajuda" in body["whatsapp_commands"]
+    assert "Como comecar" in response.text
+    assert "/auth/login" in response.text
+    assert "/docs" in response.text
+    assert "wa.me" in response.text
 
 
 def test_swagger_docs_endpoint_is_available():
