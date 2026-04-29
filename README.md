@@ -4,6 +4,42 @@ MVP para integrar uma conta Outlook com FastAPI, autenticar via Microsoft Graph 
 
 No estado atual, o fluxo OAuth e token de acesso ficam persistidos localmente em arquivos na pasta `sessions/`.
 
+## Inicio rapido para desenvolvimento (principal)
+
+Se o objetivo e desenvolver localmente com tranquilidade, este e o fluxo recomendado.
+
+1- Copie e configure o ambiente:
+
+```bash
+cp .env.example .env
+```
+
+2- Suba os containers de desenvolvimento:
+
+```bash
+docker compose -f docker-compose.dev.yml up -d --build
+```
+
+3- Verifique se os servicos subiram:
+
+```bash
+docker compose -f docker-compose.dev.yml ps
+```
+
+4- Acesse:
+
+- API: `http://localhost:8000`
+- Evolution API: `http://localhost:8080`
+- Evolution Manager: `http://localhost:3000`
+
+5- Quando terminar:
+
+```bash
+docker compose -f docker-compose.dev.yml down --remove-orphans
+```
+
+Observacao: `docker-compose.yml` continua como alias de desenvolvimento para compatibilidade, mas para evitar duvidas prefira usar explicitamente `docker-compose.dev.yml`.
+
 ## Stack
 
 - Python + FastAPI
@@ -56,12 +92,45 @@ Observacao: o backend agora aceita tambem `https://outlook-emails.onrender.com/c
 
 ## Executar
 
-### 🐳 Docker Compose (RECOMENDADO)
+### Docker Compose (RECOMENDADO)
 
-A forma **recomendada** de executar é via Docker, garantindo isolamento, reproducibilidade e sem dependências locais.
+A forma recomendada de executar e via Docker, garantindo isolamento, reproducibilidade e sem dependencias locais.
+
+Este repositorio agora possui 2 perfis separados:
+
+- Desenvolvimento: `docker-compose.dev.yml`
+- Producao: `docker-compose.prod.yml`
+
+Tambem mantemos `docker-compose.yml` como alias de desenvolvimento para compatibilidade.
+
+### Rodar em desenvolvimento
+
+Use este modo no dia a dia. Ele sobe API com hot reload e monta codigo local via volume.
 
 ```bash
-docker compose up --build
+docker compose -f docker-compose.dev.yml up -d --build
+docker compose -f docker-compose.dev.yml ps
+```
+
+Para parar:
+
+```bash
+docker compose -f docker-compose.dev.yml down --remove-orphans
+```
+
+### Rodar em producao
+
+Use este modo para ambiente estavel (sem reload, com volumes nomeados para dados/sessoes).
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml ps
+```
+
+Para parar:
+
+```bash
+docker compose -f docker-compose.prod.yml down --remove-orphans
 ```
 
 Aplicacao em: `http://localhost:8000`
@@ -70,14 +139,14 @@ Servicos adicionais desta stack:
 
 - Backend FastAPI: `http://localhost:8000`
 - Evolution API: `http://localhost:8080`
-- Evolution Manager: `http://localhost:3000`
+- Evolution Manager (somente dev): `http://localhost:3000`
 
-**Beneficios:**
+Beneficios:
 
-- Ambiente isolado e reproducível
-- Sem necessidade de instalar dependências localmente
+- Ambiente isolado e reproduzivel
+- Sem necessidade de instalar dependencias localmente
 - Funciona igual em qualquer maquina (local, CI/CD, producao)
-- Um unico comando: `docker compose up --build`
+- Fluxo separado para dev e producao
 
 ### Local com uv (Alternativa)
 
@@ -148,7 +217,7 @@ curl -X POST http://localhost:8000/notifications/daily-summary \
 
 ## Rodando a Evolution API localmente
 
-Esta stack ja inclui a Evolution API, Redis, Postgres e o Manager web no mesmo `docker-compose.yml`.
+Esta stack ja inclui Evolution API, Redis, Postgres e Manager web (somente dev) nos arquivos de compose.
 
 ### 1. Preparar o `.env`
 
@@ -171,8 +240,16 @@ EVOLUTION_DEFAULT_NUMBER=5511999999999
 
 ### 2. Subir os containers
 
+Ambiente de desenvolvimento:
+
 ```bash
-docker compose up -d api evolution-postgres evolution-redis evolution-api evolution-manager
+docker compose -f docker-compose.dev.yml up -d --build api evolution-postgres evolution-redis evolution-api evolution-manager
+```
+
+Ambiente de producao:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build api evolution-postgres evolution-redis evolution-api
 ```
 
 ### 3. Abrir o painel da Evolution
@@ -207,7 +284,7 @@ Se isso responder `201`, a Evolution esta pronta.
 
 ### 6. Webhook inbound ja configurado
 
-O `docker-compose.yml` desta stack ja sobe a Evolution com webhook global apontando para:
+Os arquivos de compose desta stack ja sobem a Evolution com webhook global apontando para:
 
 - `http://api:8000/whatsapp/webhook`
 
