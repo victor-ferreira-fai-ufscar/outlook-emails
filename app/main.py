@@ -11,16 +11,33 @@ Estrutura:
   - messages.py: mensagens (emails)
 """
 
+import asyncio
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from scalar_fastapi import get_scalar_api_reference
 
 from app.routes import health, auth, profile, messages, bot, notifications, whatsapp
+from app.worker import process_inbound_webhooks
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Inicia o worker em background
+    worker_task = asyncio.create_task(process_inbound_webhooks())
+    yield
+    # Cancela o worker ao encerrar a aplicacao
+    worker_task.cancel()
+    try:
+        await worker_task
+    except asyncio.CancelledError:
+        pass
 
 app = FastAPI(
     title="Outlook Profile Integration",
     description="MVP para integrar Outlook via Microsoft Graph e FastAPI",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 

@@ -1,0 +1,16 @@
+1. Inicializar o Supabase no projeto:
+    npx supabase init
+
+2. Fazer login no Supabase:
+    npx supabase login
+    
+3. Linkar o projeto:
+    npx supabase link --project-ref uuqnlnjfkhrkpfpgwuin
+
+4. Subir a tabela pro banco de dados:
+    npx supabase db push
+
+5. Subir a Edge Function pra nuvem:
+    npx supabase secrets set SUPABASE_URL="Sua-URL-Do-Supabase-No.env"
+    npx supabase secrets set SUPABASE_SERVICE_ROLE_KEY="Sua-Role-Key-Supabase"
+    npx supabase functions deploy evolution-webhook
