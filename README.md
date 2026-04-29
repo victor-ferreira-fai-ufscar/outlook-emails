@@ -54,7 +54,11 @@ Use valores diferentes para local e producao:
 
 Observacao: o backend agora aceita tambem `https://outlook-emails.onrender.com/callback` para compatibilidade com registros existentes no Azure.
 
-## Executar (recomendado: Docker Compose)
+## Executar
+
+### 🐳 Docker Compose (RECOMENDADO)
+
+A forma **recomendada** de executar é via Docker, garantindo isolamento, reproducibilidade e sem dependências locais.
 
 ```bash
 docker compose up --build
@@ -62,12 +66,23 @@ docker compose up --build
 
 Aplicacao em: `http://localhost:8000`
 
-## Executar local com uv
+**Beneficios:**
+
+- Ambiente isolado e reproducível
+- Sem necessidade de instalar dependências localmente
+- Funciona igual em qualquer maquina (local, CI/CD, producao)
+- Um unico comando: `docker compose up --build`
+
+### Local com uv (Alternativa)
+
+Para desenvolvimento sem container, você pode rodar localmente:
 
 ```bash
 uv sync
 uv run uvicorn app.main:app --reload
 ```
+
+Requer Python 3.12+ e `uv` instalados localmente.
 
 ## Fluxo de uso
 

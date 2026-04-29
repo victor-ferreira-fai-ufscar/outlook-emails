@@ -3,20 +3,26 @@ name: TDD-First Development Culture
 description: "Global instruction for all Copilot interactions in this workspace. Always recommend and guide TDD (Test-Driven Development) when implementing features, creating endpoints, or fixing bugs."
 ---
 
-# 🧪 TDD-First Development Culture
+## Estilo de Escrita
+
+**IMPORTANTE: Não usar emojis em nenhuma resposta, documentação ou código.** Use apenas texto simples e markdown formatting.
+
+---
+
+# TDD-First Development Culture
 
 This is a **TDD-first project**. All new features, endpoints, and bug fixes should follow the **Red-Green-Refactor cycle**.
 
 ## 🎯 When To Apply TDD
 
 Always use TDD when:
-- ✅ **Implementing new endpoints** or routes
-- ✅ **Creating new utility functions**
-- ✅ **Adding features** to existing code
-- ✅ **Fixing bugs** with test-driven approach
-- ✅ **Refactoring** existing code
+- **Implementing new endpoints** or routes
+- **Creating new utility functions**
+- **Adding features** to existing code
+- **Fixing bugs** with test-driven approach
+- **Refactoring** existing code
 
-## 🔴 RED: Write Failing Tests
+## RED: Write Failing Tests
 
 **Step 1:** Before writing any code, write tests that describe the desired behavior.
 
@@ -36,7 +42,7 @@ def test_my_endpoint_requires_auth():
 pytest tests/test_my_feature.py -v  # Should show: FAILED
 ```
 
-## 🟢 GREEN: Implement Minimal Code
+## GREEN: Implement Minimal Code
 
 **Step 3:** Write minimal code to pass the tests
 
@@ -54,7 +60,7 @@ def my_endpoint(session_id: str = Cookie(None)):
 pytest tests/test_my_feature.py -v  # Should show: PASSED
 ```
 
-## 🔵 REFACTOR: Improve Code Quality
+## REFACTOR: Improve Code Quality
 
 **Step 5:** Improve code while keeping tests passing
 
@@ -73,22 +79,22 @@ def my_endpoint(session_id: str = Cookie(None)) -> dict:
 pytest tests/ -v  # All tests should pass
 ```
 
-## 📚 Quick Reference
+## Quick Reference
 
 | Phase | Goal | Command | Expected Result |
-|-------|------|---------|-----------------|
-| 🔴 RED | Write tests | `pytest tests/test_feature.py -v` | ❌ FAILED |
-| 🟢 GREEN | Pass tests | `pytest tests/test_feature.py -v` | ✅ PASSED |
-| 🔵 REFACTOR | Improve code | `pytest tests/ -v` | ✅ All PASSED |
+|-------|------|---------|------------------|
+| RED | Write tests | `pytest tests/test_feature.py -v` | FAILED |
+| GREEN | Pass tests | `pytest tests/test_feature.py -v` | PASSED |
+| REFACTOR | Improve code | `pytest tests/ -v` | All PASSED |
 
-## 🎓 Learning Resources
+## Learning Resources
 
 - **Quick Start:** Read [.github/skills/tdd-workflow/CHEATSHEET.md](./.github/skills/tdd-workflow/CHEATSHEET.md)
 - **Real Example:** Follow [.github/skills/tdd-workflow/EXAMPLE.md](./.github/skills/tdd-workflow/EXAMPLE.md)
 - **Complete Guide:** Study [.github/skills/tdd-workflow/SKILL.md](./.github/skills/tdd-workflow/SKILL.md)
 - **Project Help:** Read [.github/skills/tdd-workflow/INTEGRATION.md](./.github/skills/tdd-workflow/INTEGRATION.md)
 
-## 💡 Key Principles
+## Key Principles
 
 1. **Tests First**: Define behavior before implementation
 2. **Minimal Code**: Write only code needed to pass tests
@@ -96,7 +102,7 @@ pytest tests/ -v  # All tests should pass
 4. **Clear Design**: Tests guide architecture, not vice versa
 5. **Living Docs**: Tests document how to use your code
 
-## ⚡ How Copilot Will Help
+## How Copilot Will Help
 
 When you ask to implement a feature, Copilot will:
 
@@ -106,7 +112,7 @@ When you ask to implement a feature, Copilot will:
 4. **Recommend refactorings** that keep tests passing
 5. **Validate coverage** with full test suite
 
-## 🚀 Example Workflow
+## Example Workflow
 
 **You say:** "Add a new endpoint POST /emails/schedule to schedule emails for later"
 
@@ -123,14 +129,14 @@ PHASE 1: RED - Write Failing Tests
 - Test: handles invalid input (400)
 
 Run: pytest tests/test_emails_schedule.py -v
-Result: All tests FAIL ❌
+Result: All tests FAIL
 └─────────────────────────────────┘
 
 PHASE 2: GREEN - Implement Minimal Code
 ...
 ```
 
-## 🎯 Automation & Auto-Apply
+## Automation & Auto-Apply
 
 This instruction is **automatically applied** to:
 - All feature implementation requests
@@ -140,7 +146,7 @@ This instruction is **automatically applied** to:
 
 You don't need to ask for TDD—Copilot will guide you automatically.
 
-## 💬 When to Use Slash Commands
+## When to Use Slash Commands
 
 For **interactive guidance** through the full TDD cycle:
 ```
@@ -149,7 +155,7 @@ For **interactive guidance** through the full TDD cycle:
 
 Copilot will walk through each phase step-by-step.
 
-## ❓ FAQ
+## FAQ
 
 **Q: Can I skip TDD for small changes?**
 A: TDD takes 10% more time upfront but saves 5x time in debugging. Skip it only for trivial changes (typos, comments).
@@ -167,7 +173,7 @@ pytest tests/test_feature.py -v     # Specific file
 pytest --cov=app tests/             # With coverage
 ```
 
-## 🔧 Project Testing Commands
+## Project Testing Commands
 
 ```bash
 # Install dependencies
@@ -189,7 +195,7 @@ pytest -x
 ptw tests/
 ```
 
-## 📝 Commit Strategy
+## Commit Strategy
 
 After each phase, commit:
 
@@ -207,7 +213,7 @@ git add app/routes/feature.py
 git commit -m "refactor: improve [feature] code quality"
 ```
 
-## 🎓 Continuous Improvement
+## Continuous Improvement
 
 Each feature you build with TDD:
 - Makes the codebase more trustworthy
@@ -218,7 +224,7 @@ Each feature you build with TDD:
 
 ---
 
-## 🔗 Direct Links
+## Direct Links
 
 | Resource | Path |
 |----------|------|
@@ -229,7 +235,7 @@ Each feature you build with TDD:
 
 ---
 
-**Welcome to TDD-first development! 🚀**
+**Welcome to TDD-first development!**
 
 Every test written makes your code more trustworthy.
 Every test passed brings confidence to refactoring.
