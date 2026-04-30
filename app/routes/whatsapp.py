@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, HTTPException, Request
 from urllib.parse import urlencode, urlsplit, urlunsplit, parse_qsl
+from jinja2 import Environment, FileSystemLoader
 
 from app.config import (
     BOT_LOGIN_URL,
@@ -10,6 +11,7 @@ from app.config import (
     SUMMARY_WINDOW_HOURS,
     WHATSAPP_ALLOW_FROM_ME,
     WHATSAPP_ALLOWED_GROUP_ID,
+    BOT_COMMAND_PREFIX,
 )
 from app.supabase_client import get_user_id_by_whatsapp_number, get_user_settings
 from app.utils import (
@@ -24,8 +26,7 @@ from app.utils import (
 )
 
 router = APIRouter(prefix="/whatsapp", tags=["whatsapp"])
-
-
+jinja_env = Environment(loader=FileSystemLoader("app/templates"))
 def _extract_text(message: dict) -> str:
     if not isinstance(message, dict):
         return ""
@@ -103,68 +104,73 @@ def _build_login_url(number: str) -> str:
     )
 
 
-def _command_response(command: str, sender_number: str) -> str:
-    normalized = command.strip().lower()
+def _command_response(command: str, sender_number: str) -> str | None:
+    text = command.strip()
+    
+    # Se não começar com o prefixo definido (ex: !), ignora silenciosamente
+    if not text.startswith(BOT_COMMAND_PREFIX):
+        return None
+
+    # Remove o prefixo para processar o comando
+    normalized = text[len(BOT_COMMAND_PREFIX):].strip().lower()
 
     if normalized in {"ajuda", "help", "/help"}:
-        return "Comandos disponiveis: ajuda, login, status, perfil, ultimo-email, resumo agora"
+        return jinja_env.get_template("whatsapp_ajuda.j2").render().strip()
 
     if normalized in {"login", "entrar"}:
-        return f"Use este link para autenticar sua conta: {_build_login_url(sender_number)}"
+        return jinja_env.get_template("whatsapp_login.j2").render(login_url=_build_login_url(sender_number)).strip()
 
     user_id = get_user_id_by_whatsapp_number(sender_number)
-    if (
-        normalized
-        in {
-            "status",
-            "perfil",
-            "profile",
-            "me",
-            "ultimo-email",
-            "último-email",
-            "latest-email",
-        }
-        and not user_id
-    ):
-        return f"Numero ainda nao vinculado. Faça login aqui: {_build_login_url(sender_number)}"
+    
+    requires_auth = {
+        "status",
+        "perfil",
+        "profile",
+        "me",
+        "ultimo-email",
+        "último-email",
+        "latest-email",
+    }
+    if normalized in requires_auth and not user_id:
+        return jinja_env.get_template("whatsapp_not_logged_in.j2").render(login_url=_build_login_url(sender_number)).strip()
 
     if normalized == "status":
         try:
             access_token = get_access_token_for_user_id(user_id)
             profile = fetch_outlook_profile(access_token)
         except HTTPException:
-            return f"Sem sessao ativa. Use o login: {_build_login_url(sender_number)}"
+            return jinja_env.get_template("whatsapp_not_logged_in.j2").render(login_url=_build_login_url(sender_number)).strip()
 
         user_email = (
             profile.get("mail") or profile.get("userPrincipalName") or "sem-email"
         )
-        return f"Sessao ativa. Usuario autenticado: {user_email}"
+        return jinja_env.get_template("whatsapp_status.j2").render(user_email=user_email).strip()
 
     if normalized in {"perfil", "profile", "me"}:
         try:
             access_token = get_access_token_for_user_id(user_id)
             profile = fetch_outlook_profile(access_token)
         except HTTPException:
-            return f"Sem sessao ativa. Use o login: {_build_login_url(sender_number)}"
+            return jinja_env.get_template("whatsapp_not_logged_in.j2").render(login_url=_build_login_url(sender_number)).strip()
 
         name = profile.get("displayName") or "Usuario"
         email = profile.get("mail") or profile.get("userPrincipalName") or "sem-email"
-        return f"Perfil atual: {name} <{email}>"
+        return jinja_env.get_template("whatsapp_perfil.j2").render(name=name, email=email).strip()
 
     if normalized in {"ultimo-email", "último-email", "latest-email"}:
         try:
             access_token = get_access_token_for_user_id(user_id)
             latest_email = fetch_latest_sent_email(access_token)
         except HTTPException:
-            return f"Sem sessao ativa. Use o login: {_build_login_url(sender_number)}"
+            return jinja_env.get_template("whatsapp_not_logged_in.j2").render(login_url=_build_login_url(sender_number)).strip()
 
         subject = latest_email.get("subject") or "(sem assunto)"
-        return f"Ultimo email enviado: {subject}"
+        return jinja_env.get_template("whatsapp_ultimo_email.j2").render(subject=subject).strip()
 
     if normalized in {"resumo", "resumo agora", "summary now"}:
         return "__SEND_SUMMARY__"
 
-    return "Comando nao reconhecido. Digite 'ajuda' para ver as opcoes."
+    return f"Comando nao reconhecido. Digite *{BOT_COMMAND_PREFIX}ajuda* para ver as opcoes."
 
 
 @router.post("/webhook")
@@ -190,6 +196,9 @@ def whatsapp_webhook(payload: dict, request: Request) -> dict:
         return {"status": "ok", "ignored": True, "reason": "not_in_allowed_group"}
 
     response_text = _command_response(text, sender_number)
+    if not response_text:
+        return {"status": "ok", "ignored": True, "reason": "not_a_command"}
+
     if response_text == "__SEND_SUMMARY__":
         response_text = _build_summary_for_number(sender_number)
 

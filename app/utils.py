@@ -6,6 +6,7 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from jinja2 import Environment, FileSystemLoader
 
 import msal
 import requests
@@ -267,22 +268,26 @@ def format_daily_email_summary(
             continue
         counts[priority] += 1
 
-    lines = [
-        "Resumo diario de emails",
-        f"Total de {'emails' if include_read else 'nao lidos'} (24h): {len(emails)}",
-        f"Urgente: {counts['urgente']} | Media: {counts['media']} | Baixa: {counts['baixa']}",
-        "",
-        "Principais emails:",
-    ]
-
-    for index, email in enumerate(emails[:top_n], start=1):
+    top_emails = []
+    for email in emails[:top_n]:
         received_at = str(email.get("received_at") or "")
         short_received = received_at.replace("T", " ").replace("Z", "")[:16]
-        lines.append(
-            f"{index}. [{str(email.get('priority', 'baixa')).upper()}] {email.get('subject')} - {email.get('sender_name')} ({short_received})"
-        )
+        
+        # Cria uma cópia com os campos formatados para o template
+        formatted_email = dict(email)
+        formatted_email["short_received"] = short_received
+        top_emails.append(formatted_email)
 
-    return "\n".join(lines)
+    env = Environment(loader=FileSystemLoader("app/templates"))
+    template = env.get_template("whatsapp_summary.j2")
+
+    return template.render(
+        emails=emails,
+        counts=counts,
+        top_emails=top_emails,
+        include_read=include_read,
+        now=datetime.now(timezone.utc) - timedelta(hours=3), # Horário de Brasília
+    ).strip()
 
 
 def normalize_whatsapp_number(number: str) -> str:

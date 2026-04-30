@@ -1,0 +1,31 @@
+*📧 Resumo diário de e-mails*
+_{{ now.strftime('%A, %d %b %Y') }} · últimas 24h_
+
+📨 *{{ emails|length }}* {{ 'e-mails' if include_read else 'não lidos' }}  ·  🚨 *{{ counts['urgente'] }}* urgente  ·  🟡 *{{ counts['media'] }}* média  ·  🟢 *{{ counts['baixa'] }}* baixa
+———————————————
+{% set urgentes = top_emails | selectattr('priority', 'equalto', 'urgente') | list %}
+{% set medios   = top_emails | selectattr('priority', 'equalto', 'media')   | list %}
+{% set baixos   = top_emails | selectattr('priority', 'equalto', 'baixa')   | list %}
+{% if urgentes %}
+🚨 *Urgente*
+{% for email in urgentes %}
+{{ loop.index }}. {{ email.subject }}
+   👤 _{{ email.sender_name }}_ · {{ email.short_received }}
+{% endfor %}
+{% endif %}
+{% if medios %}
+———————————————
+🟡 *Média prioridade*
+{% for email in medios %}
+{{ urgentes|length + loop.index }}. {{ email.subject }}
+   👤 _{{ email.sender_name }}_ · {{ email.short_received }}
+{% endfor %}
+{% endif %}
+{% if baixos %}
+———————————————
+🟢 *Baixa prioridade*
+{% for email in baixos %}
+{{ urgentes|length + medios|length + loop.index }}. {{ email.subject }}
+   👤 _{{ email.sender_name }}_ · {{ email.short_received }}
+{% endfor %}
+{% endif %}

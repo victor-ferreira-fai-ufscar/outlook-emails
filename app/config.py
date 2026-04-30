@@ -37,6 +37,7 @@ BOT_LOGIN_URL = os.getenv("BOT_LOGIN_URL", "http://localhost:8000/auth/login")
 BOT_REQUIRE_AUTH = _as_bool(os.getenv("BOT_REQUIRE_AUTH", "false"), default=False)
 BOT_BEARER_TOKEN = os.getenv("BOT_BEARER_TOKEN", "")
 BOT_ALLOWED_CHANNEL = os.getenv("BOT_ALLOWED_CHANNEL", "msteams")
+BOT_COMMAND_PREFIX = os.getenv("BOT_COMMAND_PREFIX", "!")
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")

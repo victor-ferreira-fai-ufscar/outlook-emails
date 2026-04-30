@@ -41,3 +41,5 @@ services:
         sync: false
       - key: WHATSAPP_ALLOWED_GROUP_ID
         sync: false
+      - key: BOT_COMMAND_PREFIX
+        value: "!"

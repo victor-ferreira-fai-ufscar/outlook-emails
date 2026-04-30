@@ -52,6 +52,7 @@ Observacao: `docker-compose.yml` continua como alias de desenvolvimento para com
 - Python + FastAPI
 - `uv` para gerenciar dependencias
 - Microsoft Graph API (OAuth2)
+- Jinja2 para templates de mensagens (WhatsApp)
 
 ## Pre-requisitos
 
@@ -314,14 +315,14 @@ Agora o fluxo ficou assim:
 4. No callback OAuth, o backend vincula esse numero do WhatsApp ao `user_id` do Outlook.
 5. A partir desse momento, comandos como `status`, `perfil`, `ultimo-email` e `resumo agora` usam a sessao do usuario autenticado correto.
 
-Comandos suportados no chat:
+Comandos suportados no chat (requerem prefixo `!` por padrão):
 
-- `ajuda`
-- `login`
-- `status`
-- `perfil`
-- `ultimo-email`
-- `resumo agora`
+- `!ajuda`: Lista todos os comandos
+- `!login`: Gera link de autenticação vinculado ao seu WhatsApp
+- `!status`: Verifica se sua conta Microsoft está conectada
+- `!perfil`: Exibe nome e e-mail da conta vinculada
+- `!ultimo-email`: Mostra o assunto do último e-mail enviado
+- `!resumo agora`: Gera um resumo imediato das últimas 24h e envia no grupo
 
 Exemplo de comando HTTP on-demand:
 
@@ -340,14 +341,14 @@ Fluxo implementado:
 2. O backend extrai o texto recebido e identifica o comando
 3. O backend responde para o mesmo numero via `POST /message/sendText/{instance}`
 
-Comandos suportados no chat:
+Comandos suportados no chat (exigem prefixo):
 
-- `ajuda`
-- `login`
-- `status`
-- `perfil`
-- `ultimo-email`
-- `resumo agora`
+- `!ajuda`
+- `!login`
+- `!status`
+- `!perfil`
+- `!ultimo-email`
+- `!resumo agora`
 
 Para habilitar o inbound, configure na Evolution API o webhook do evento `messages.upsert` apontando para a URL deste backend.
 
