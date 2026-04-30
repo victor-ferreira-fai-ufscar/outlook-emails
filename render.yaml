@@ -20,9 +20,9 @@ services:
       - key: MS_TENANT_ID
         value: common
       - key: MS_REDIRECT_URI
-        sync: false
+        value: https://outlook-emails.onrender.com/auth/callback
       - key: BOT_LOGIN_URL
-        sync: false
+        value: https://outlook-emails.onrender.com/auth/login
       - key: BOT_REQUIRE_AUTH
         value: "true"
       - key: BOT_BEARER_TOKEN
