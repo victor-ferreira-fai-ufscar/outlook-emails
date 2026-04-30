@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timezone
 
 from app.supabase_client import get_supabase_client
-from app.config import SUPABASE_ENABLED
+from app.config import SUPABASE_ENABLED, WHATSAPP_ALLOWED_GROUP_ID
 from app.routes.whatsapp import _extract_sender, _extract_text, _command_response, _build_summary_for_number
 from app.utils import send_whatsapp_via_evolution_api
 
@@ -50,6 +50,10 @@ async def process_inbound_webhooks():
 
                     if not sender_number or not text:
                         _mark_as_processed(client, record_id, status="ignored", error="missing_sender_or_text")
+                        continue
+
+                    if WHATSAPP_ALLOWED_GROUP_ID and sender_number != WHATSAPP_ALLOWED_GROUP_ID:
+                        _mark_as_processed(client, record_id, status="ignored", error="not_in_allowed_group")
                         continue
 
                     # Processa o comando

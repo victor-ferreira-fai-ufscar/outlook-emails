@@ -9,6 +9,7 @@ from app.config import (
     SUMMARY_TOP_N,
     SUMMARY_WINDOW_HOURS,
     WHATSAPP_ALLOW_FROM_ME,
+    WHATSAPP_ALLOWED_GROUP_ID,
 )
 from app.supabase_client import get_user_id_by_whatsapp_number, get_user_settings
 from app.utils import (
@@ -184,6 +185,9 @@ def whatsapp_webhook(payload: dict, request: Request) -> dict:
 
     if not sender_number or not text:
         return {"status": "ok", "ignored": True, "reason": "missing_sender_or_text"}
+
+    if WHATSAPP_ALLOWED_GROUP_ID and sender_number != WHATSAPP_ALLOWED_GROUP_ID:
+        return {"status": "ok", "ignored": True, "reason": "not_in_allowed_group"}
 
     response_text = _command_response(text, sender_number)
     if response_text == "__SEND_SUMMARY__":

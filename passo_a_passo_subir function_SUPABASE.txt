@@ -13,4 +13,4 @@
 5. Subir a Edge Function pra nuvem:
     npx supabase secrets set SUPABASE_URL="Sua-URL-Do-Supabase-No.env"
     npx supabase secrets set SUPABASE_SERVICE_ROLE_KEY="Sua-Role-Key-Supabase"
-    npx supabase functions deploy evolution-webhook
+    npx supabase functions deploy evolution-webhook --no-verify-jwt
