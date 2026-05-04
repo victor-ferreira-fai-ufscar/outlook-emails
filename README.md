@@ -210,6 +210,7 @@ Fluxo implementado:
 2. Classifica prioridade por regras simples (urgente/media/baixa)
 3. Gera resumo textual
 4. Envia no WhatsApp via Evolution API
+5. **Agendamento Automático**: O sistema possui um scheduler interno (`APScheduler`) que envia resumos diários no horário configurado por cada usuário (padrão 08:00).
 
 Variaveis necessarias no `.env`:
 
@@ -322,7 +323,9 @@ Comandos suportados no chat (requerem prefixo `!` por padrão):
 - `!status`: Verifica se sua conta Microsoft está conectada
 - `!perfil`: Exibe nome e e-mail da conta vinculada
 - `!ultimo-email`: Mostra o assunto do último e-mail enviado
-- `!resumo agora`: Gera um resumo imediato das últimas 24h e envia no grupo
+- `!resumo`: Gera um resumo imediato das últimas 24h e envia no chat
+- `!agendar HH:MM`: Define o horário do resumo automático diário
+- `!config`: Exibe suas configurações atuais (agendamento, limite, etc)
 
 Exemplo de comando HTTP on-demand:
 
@@ -348,7 +351,9 @@ Comandos suportados no chat (exigem prefixo):
 - `!status`
 - `!perfil`
 - `!ultimo-email`
-- `!resumo agora`
+- `!resumo`
+- `!agendar HH:MM`
+- `!config`
 
 Para habilitar o inbound, configure na Evolution API o webhook do evento `messages.upsert` apontando para a URL deste backend.
 

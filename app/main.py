@@ -20,12 +20,19 @@ from scalar_fastapi import get_scalar_api_reference
 
 from app.routes import health, auth, profile, messages, bot, notifications, whatsapp
 from app.worker import process_inbound_webhooks
+from app.scheduler import email_scheduler
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Inicia o worker em background
     worker_task = asyncio.create_task(process_inbound_webhooks())
+    # Inicia o scheduler de resumos
+    await email_scheduler.start()
+    
     yield
+    
+    # Encerra o scheduler
+    await email_scheduler.stop()
     # Cancela o worker ao encerrar a aplicacao
     worker_task.cancel()
     try:

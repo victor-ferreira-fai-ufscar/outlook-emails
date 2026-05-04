@@ -15,6 +15,7 @@ DEFAULT_USER_SETTINGS = {
     "include_read_emails": False,
     "preferred_channel": "whatsapp",
     "priority_senders": [],
+    "summary_schedule": "08:00",
 }
 
 
@@ -99,6 +100,20 @@ def _normalize_user_settings(raw: dict[str, Any]) -> dict[str, Any]:
         str(sender).strip().lower() for sender in senders if str(sender).strip()
     ]
 
+    # Valida formato HH:MM
+    schedule = str(merged.get("summary_schedule", "08:00")).strip()
+    if len(schedule) == 5 and ":" in schedule:
+        try:
+            h, m = map(int, schedule.split(":"))
+            if 0 <= h <= 23 and 0 <= m <= 59:
+                merged["summary_schedule"] = f"{h:02d}:{m:02d}"
+            else:
+                merged["summary_schedule"] = "08:00"
+        except ValueError:
+            merged["summary_schedule"] = "08:00"
+    else:
+        merged["summary_schedule"] = "08:00"
+
     return merged
 
 
@@ -114,7 +129,7 @@ def get_user_settings(user_id: str) -> dict[str, Any]:
         response = (
             client.table("user_settings")
             .select(
-                "user_id,max_emails_in_summary,include_read_emails,preferred_channel,priority_senders"
+                "user_id,max_emails_in_summary,include_read_emails,preferred_channel,priority_senders,summary_schedule"
             )
             .eq("user_id", user_id)
             .limit(1)

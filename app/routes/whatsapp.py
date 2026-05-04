@@ -13,7 +13,7 @@ from app.config import (
     WHATSAPP_ALLOWED_GROUP_ID,
     BOT_COMMAND_PREFIX,
 )
-from app.supabase_client import get_user_id_by_whatsapp_number, get_user_settings
+from app.supabase_client import get_user_id_by_whatsapp_number, get_user_settings, save_user_settings
 from app.utils import (
     get_access_token_for_user_id,
     fetch_latest_sent_email,
@@ -169,6 +169,27 @@ def _command_response(command: str, sender_number: str) -> str | None:
 
     if normalized in {"resumo", "resumo agora", "summary now"}:
         return "__SEND_SUMMARY__"
+
+    if normalized.startswith("agendar"):
+        parts = normalized.split()
+        if len(parts) < 2:
+            return f"Uso correto: *{BOT_COMMAND_PREFIX}agendar HH:MM* (ex: {BOT_COMMAND_PREFIX}agendar 08:30)"
+        
+        new_time = parts[1]
+        # A validação final acontece dentro do save_user_settings/normalize
+        settings = get_user_settings(user_id)
+        settings["summary_schedule"] = new_time
+        save_user_settings(user_id, settings)
+        
+        # Recarrega para confirmar se foi aceito (validado)
+        updated_settings = get_user_settings(user_id)
+        final_time = updated_settings.get("summary_schedule")
+        
+        return f"✅ Horario de resumo atualizado para *{final_time}*."
+
+    if normalized in {"config", "configuracoes", "settings"}:
+        settings = get_user_settings(user_id)
+        return jinja_env.get_template("whatsapp_config.j2").render(settings=settings).strip()
 
     return f"Comando nao reconhecido. Digite *{BOT_COMMAND_PREFIX}ajuda* para ver as opcoes."
 
