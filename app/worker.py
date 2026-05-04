@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timezone
 
 from app.supabase_client import get_supabase_client
-from app.config import SUPABASE_ENABLED, WHATSAPP_ALLOWED_GROUP_ID
+from app.config import SUPABASE_ENABLED, WHATSAPP_ALLOWED_GROUP_ID, WHATSAPP_ALLOWED_NUMBERS
 from app.routes.whatsapp import _extract_sender, _extract_text, _command_response, _build_summary_for_number
 from app.utils import send_whatsapp_via_evolution_api
 
@@ -40,7 +40,7 @@ async def process_inbound_webhooks():
                 try:
                     # Lógica similar à do endpoint /webhook
                     if payload.get("event") != "messages.upsert":
-                        _mark_as_processed(client, record_id, status="ignored", error="unsupported_event")
+                        _delete_record(client, record_id)
                         continue
 
                     data = payload.get("data") or {}
@@ -49,15 +49,23 @@ async def process_inbound_webhooks():
                     text = _extract_text(message).strip()
 
                     if not sender_number or not text:
-                        _mark_as_processed(client, record_id, status="ignored", error="missing_sender_or_text")
+                        _delete_record(client, record_id)
                         continue
 
-                    if WHATSAPP_ALLOWED_GROUP_ID and sender_number != WHATSAPP_ALLOWED_GROUP_ID:
-                        _mark_as_processed(client, record_id, status="ignored", error="not_in_allowed_group")
+                    # Verifica se o remetente é o grupo permitido ou um número autorizado
+                    is_allowed_group = WHATSAPP_ALLOWED_GROUP_ID and sender_number == WHATSAPP_ALLOWED_GROUP_ID
+                    is_allowed_number = sender_number in WHATSAPP_ALLOWED_NUMBERS
+                    
+                    if not is_allowed_group and not is_allowed_number:
+                        _delete_record(client, record_id)
                         continue
 
                     # Processa o comando
                     response_text = _command_response(text, sender_number)
+                    if response_text is None:
+                        _delete_record(client, record_id)
+                        continue
+
                     if response_text == "__SEND_SUMMARY__":
                         response_text = _build_summary_for_number(sender_number)
 
@@ -89,3 +97,10 @@ def _mark_as_processed(client, record_id: str, status: str, error: str = None):
         client.table("whatsapp_inbound").update(update_data).eq("id", record_id).execute()
     except Exception as e:
         logger.error(f"Erro ao atualizar status do registro {record_id}: {e}")
+
+def _delete_record(client, record_id: str):
+    """Remove o registro da tabela para evitar acumulo de lixo."""
+    try:
+        client.table("whatsapp_inbound").delete().eq("id", record_id).execute()
+    except Exception as e:
+        logger.error(f"Erro ao deletar registro {record_id}: {e}")

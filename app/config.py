@@ -53,6 +53,9 @@ WHATSAPP_ALLOW_FROM_ME = _as_bool(
     os.getenv("WHATSAPP_ALLOW_FROM_ME", "false"), default=False
 )
 WHATSAPP_ALLOWED_GROUP_ID = os.getenv("WHATSAPP_ALLOWED_GROUP_ID", "").split("@")[0].strip()
+WHATSAPP_ALLOWED_NUMBERS = [
+    n.strip() for n in os.getenv("WHATSAPP_ALLOWED_NUMBERS", "").split(",") if n.strip()
+]
 
 NOTIFICATIONS_REQUIRE_AUTH = _as_bool(
     os.getenv("NOTIFICATIONS_REQUIRE_AUTH", "true"), default=True

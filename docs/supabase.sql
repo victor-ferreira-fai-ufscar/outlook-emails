@@ -23,6 +23,7 @@ create table if not exists public.user_settings (
   include_read_emails boolean not null default false,
   preferred_channel text not null default 'whatsapp',
   priority_senders text[] not null default '{}',
+  summary_schedule text not null default '08:00',
   updated_at timestamptz not null default now()
 );
 
@@ -35,3 +36,15 @@ create table if not exists public.whatsapp_links (
 );
 
 create unique index if not exists whatsapp_links_user_id_idx on public.whatsapp_links (user_id);
+
+create table if not exists public.whatsapp_inbound (
+  id uuid primary key default gen_random_uuid(),
+  payload jsonb not null,
+  status text not null default 'pending',
+  error text,
+  processed_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists whatsapp_inbound_status_idx on public.whatsapp_inbound (status);
+create index if not exists whatsapp_inbound_created_at_idx on public.whatsapp_inbound (created_at asc);

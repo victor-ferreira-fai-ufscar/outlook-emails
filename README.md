@@ -223,6 +223,8 @@ Variaveis necessarias no `.env`:
 Opcional:
 
 - `SUMMARY_PRIORITY_SENDERS` (lista CSV de remetentes com prioridade alta)
+- `WHATSAPP_ALLOWED_GROUP_ID` (ID do grupo permitido, opcional)
+- `WHATSAPP_ALLOWED_NUMBERS` (lista CSV de números individuais permitidos, opcional)
 
 Exemplo de disparo manual (apos autenticar em `/auth/login`):
 
@@ -314,7 +316,7 @@ Agora o fluxo ficou assim:
 2. O bot responde com um link como `/auth/login?whatsapp=5511...`.
 3. O usuario autentica no Outlook.
 4. No callback OAuth, o backend vincula esse numero do WhatsApp ao `user_id` do Outlook.
-5. A partir desse momento, comandos como `status`, `perfil`, `ultimo-email` e `resumo agora` usam a sessao do usuario autenticado correto.
+5. A partir desse momento, comandos como `status`, `perfil`, `ultimo-email` e `resumo` usam a sessao do usuario autenticado correto.
 
 Comandos suportados no chat (requerem prefixo `!` por padrão):
 
@@ -357,7 +359,12 @@ Comandos suportados no chat (exigem prefixo):
 
 Para habilitar o inbound, configure na Evolution API o webhook do evento `messages.upsert` apontando para a URL deste backend.
 
-## Agendamento diario com GitHub Actions
+## Agendamento diário
+
+O sistema possui um **scheduler interno** (`APScheduler`) que gerencia o envio automático dos resumos. Por padrão, os resumos são enviados às 08:00, mas cada usuário pode personalizar seu horário via comando `!agendar`.
+
+### Alternativa: GitHub Actions
+Caso prefira um gatilho externo, o workflow em `.github/workflows/daily-summary.yml` continua disponível com:
 
 Workflow adicionado em `.github/workflows/daily-summary.yml` com:
 
@@ -442,8 +449,15 @@ Arquivo pronto com SQL:
 ```text
 app/
   main.py
+  scheduler.py
+  worker.py
+  supabase_client.py
+  utils.py
+  routes/
+  templates/
 data/
 docs/
 pyproject.toml
-docker-compose.yml
+docker-compose.dev.yml
+docker-compose.prod.yml
 ```

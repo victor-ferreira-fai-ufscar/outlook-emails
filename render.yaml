@@ -39,7 +39,9 @@ services:
         sync: false
       - key: EVOLUTION_DEFAULT_NUMBER
         sync: false
-      - key: WHATSAPP_ALLOWED_GROUP_ID
+      - key: WHATSAPP_ALLOWED_GROssUP_ID
         sync: false
       - key: BOT_COMMAND_PREFIX
         value: "!"
+      - key: WHATSAPP_ALLOWED_NUMBERS
+        sync: false
