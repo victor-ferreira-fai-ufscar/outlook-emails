@@ -19,7 +19,7 @@ from app.utils import (
     fetch_latest_sent_email,
     fetch_outlook_profile,
     fetch_unread_inbox_emails,
-    format_daily_email_summary,
+    format_daily_ia_email_summary,
     get_latest_local_access_token,
     normalize_whatsapp_number,
     send_whatsapp_via_evolution_api,
@@ -70,7 +70,7 @@ def _enforce_webhook_secret_if_configured(request: Request) -> None:
         )
 
 
-def _build_summary_for_number(number: str) -> str:
+async def _build_summary_for_number(number: str) -> str:
     user_id = get_user_id_by_whatsapp_number(number)
     if not user_id:
         return (
@@ -87,7 +87,7 @@ def _build_summary_for_number(number: str) -> str:
         max_items=max_items,
         include_read=include_read,
     )
-    return format_daily_email_summary(
+    return await format_daily_ia_email_summary(
         emails,
         top_n=min(SUMMARY_TOP_N, max_items),
         include_read=include_read,
@@ -195,7 +195,7 @@ def _command_response(command: str, sender_number: str) -> str | None:
 
 
 @router.post("/webhook")
-def whatsapp_webhook(payload: dict, request: Request) -> dict:
+async def whatsapp_webhook(payload: dict, request: Request) -> dict:
     """Recebe eventos da Evolution API e responde a comandos via chat."""
     _enforce_webhook_secret_if_configured(request)
 
@@ -221,7 +221,7 @@ def whatsapp_webhook(payload: dict, request: Request) -> dict:
         return {"status": "ok", "ignored": True, "reason": "not_a_command"}
 
     if response_text == "__SEND_SUMMARY__":
-        response_text = _build_summary_for_number(sender_number)
+        response_text = await _build_summary_for_number(sender_number)
 
     send_whatsapp_via_evolution_api(message=response_text, number=sender_number)
     return {"status": "ok", "command": text.lower(), "recipient": sender_number}

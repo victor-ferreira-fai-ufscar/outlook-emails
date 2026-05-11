@@ -15,7 +15,7 @@ from app.config import (
 )
 from app.utils import (
     fetch_unread_inbox_emails,
-    format_daily_email_summary,
+    format_daily_ia_email_summary,
     get_latest_local_access_token,
     get_local_access_token,
     send_whatsapp_via_evolution_api,
@@ -90,7 +90,7 @@ def _resolve_access_token(request: Request) -> tuple[str, str]:
         return get_latest_local_access_token(), "anonymous"
 
 
-def _build_daily_summary(access_token: str, user_settings: dict) -> dict:
+async def _build_daily_summary(access_token: str, user_settings: dict) -> dict:
     """Coleta emails e entrega resumo no canal configurado."""
     max_items = int(user_settings.get("max_emails_in_summary", SUMMARY_MAX_ITEMS))
     include_read = bool(user_settings.get("include_read_emails", False))
@@ -101,7 +101,7 @@ def _build_daily_summary(access_token: str, user_settings: dict) -> dict:
         max_items=max_items,
         include_read=include_read,
     )
-    summary_text = format_daily_email_summary(
+    summary_text = await format_daily_ia_email_summary(
         emails,
         top_n=min(SUMMARY_TOP_N, max_items),
         include_read=include_read,
@@ -117,11 +117,11 @@ def _build_daily_summary(access_token: str, user_settings: dict) -> dict:
 
 
 @router.post("/daily-summary")
-def send_daily_summary(request: Request) -> dict:
+async def send_daily_summary(request: Request) -> dict:
     """Executa coleta de emails e envia resumo diario no WhatsApp."""
     access_token, user_id = _resolve_access_token(request)
     user_settings = get_user_settings(user_id)
-    result = _build_daily_summary(
+    result = await _build_daily_summary(
         access_token=access_token, user_settings=user_settings
     )
 
@@ -129,7 +129,7 @@ def send_daily_summary(request: Request) -> dict:
 
 
 @router.post("/command")
-def execute_notification_command(
+async def execute_notification_command(
     request: Request, payload: NotificationCommandRequest
 ) -> dict:
     """Executa comando on-demand para notificacoes sem depender de Teams."""
@@ -137,7 +137,7 @@ def execute_notification_command(
     user_settings = get_user_settings(user_id)
 
     if payload.action == "send_summary_now":
-        result = _build_daily_summary(
+        result = await _build_daily_summary(
             access_token=access_token, user_settings=user_settings
         )
         return {"status": "ok", "action": payload.action, "result": result}

@@ -256,3 +256,30 @@ def get_whatsapp_number_by_user_id(user_id: str) -> str | None:
         return number
     except Exception:
         return None
+
+def get_all_whatsapp_links() -> list[dict[str, str]]:
+    """Retorna todos os vínculos registrados, usando Supabase se disponível ou o fallback local."""
+    local_links = _read_local_whatsapp_links()
+    results = []
+    
+    if SUPABASE_ENABLED:
+        try:
+            client = get_supabase_client()
+            response = client.table("whatsapp_links").select("user_id, whatsapp_number").execute()
+            rows = response.data or []
+            # Atualiza o cache local
+            for row in rows:
+                local_links["numbers"][row["whatsapp_number"]] = row["user_id"]
+                local_links["users"][row["user_id"]] = row["whatsapp_number"]
+            _write_local_whatsapp_links(local_links)
+            
+            for num, uid in local_links["numbers"].items():
+                results.append({"user_id": uid, "whatsapp_number": num})
+            return results
+        except Exception as e:
+            # Em caso de erro (ex: tabela não existe), cai para o local
+            pass
+            
+    for num, uid in local_links["numbers"].items():
+        results.append({"user_id": uid, "whatsapp_number": num})
+    return results

@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timezone
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from app.supabase_client import get_supabase_client, get_user_settings
+from app.supabase_client import get_supabase_client, get_user_settings, get_all_whatsapp_links
 from app.routes.whatsapp import _build_summary_for_number
 from app.utils import send_whatsapp_via_evolution_api
 from app.config import SUPABASE_ENABLED
@@ -42,12 +42,9 @@ class EmailScheduler:
         logger.debug(f"Verificando agendamentos para {current_time}...")
 
         try:
-            client = get_supabase_client()
-            
             # Busca todos os vínculos de WhatsApp
             # Em uma escala maior, isso precisaria de filtros ou paginação
-            response = client.table("whatsapp_links").select("user_id, whatsapp_number").execute()
-            links = response.data or []
+            links = get_all_whatsapp_links()
 
             for link in links:
                 user_id = link["user_id"]

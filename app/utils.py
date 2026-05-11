@@ -290,6 +290,45 @@ def format_daily_email_summary(
     ).strip()
 
 
+async def format_daily_ia_email_summary(
+    emails: list[dict[str, Any]], top_n: int = 10, include_read: bool = False
+) -> str:
+    """Monta resumo textual usando IA para envio diário no WhatsApp."""
+    if not emails:
+        return "Nenhum email novo nao lido nas ultimas 24 horas."
+
+    from app.IA import get_llm_provider
+    provider = get_llm_provider()
+    
+    processed_emails = []
+    for email in emails[:top_n]:
+        # Tenta usar o preview do corpo, senão cai pro assunto
+        conteudo = email.get("preview") or email.get("subject") or ""
+        
+        # Chama a IA
+        resultado_ia = await provider.gerar_resumo(conteudo, anexos=[])
+        
+        processed_email = dict(email)
+        processed_email["assunto"] = email.get("subject", "(sem assunto)")
+        processed_email["remetente"] = email.get("sender_name", "Desconhecido")
+        processed_email["resumo"] = resultado_ia.get("resumo", "Sem resumo")
+        processed_email["prioridade"] = resultado_ia.get("prioridade", "Nenhuma")
+        processed_email["acao"] = resultado_ia.get("acao", "Nenhuma")
+        processed_email["prazo"] = resultado_ia.get("prazo")
+        processed_email["motivo"] = resultado_ia.get("motivo")
+        processed_email["anexos"] = [] # Aqui poderíamos adicionar anexos se extraídos do Graph API
+        
+        processed_emails.append(processed_email)
+
+    env = Environment(loader=FileSystemLoader("app/templates"))
+    template = env.get_template("whatsapp_ia_summary.j2")
+
+    return template.render(
+        emails=processed_emails,
+        now=datetime.now(timezone.utc) - timedelta(hours=3),
+    ).strip()
+
+
 def normalize_whatsapp_number(number: str) -> str:
     """Normaliza numero/JID do WhatsApp para o formato aceito pela Evolution."""
     if not number:

@@ -1,0 +1,46 @@
+*📧 Resumo Inteligente de E-mails*
+_{{ now.strftime('%A, %d %b %Y') }} · últimas 24h_
+{% set altas = emails | selectattr('prioridade', 'equalto', 'Alta') | list %}
+{% set medias = emails | selectattr('prioridade', 'equalto', 'Média') | list %}
+{% set baixas = emails | selectattr('prioridade', 'equalto', 'Baixa') | list %}
+{% set nenhumas = emails | selectattr('prioridade', 'equalto', 'Nenhuma') | list %}
+{% if altas %}
+🔴 *PRIORIDADE ALTA (ação imediata / risco de atraso ou bloqueio)*
+{% for email in altas %}
+{{ loop.index }}. {{ email.assunto }} ({{ email.remetente }})
+{% if email.anexos %}📎 *Anexos:* {{ email.anexos | join(', ') }}{% endif %}
+Resumo: {{ email.resumo }}
+Ação necessária: {{ email.acao }}
+{% if email.prazo %}Prazo explícito: {{ email.prazo }}{% endif %}
+{% if email.motivo %}Por que é crítico: {{ email.motivo }}{% endif %}
+
+{% endfor %}
+{% endif %}
+{% if medias %}
+🟠 *PRIORIDADE MÉDIA (ação requerida, mas sem urgência imediata)*
+{% for email in medias %}
+{{ altas|length + loop.index }}. {{ email.assunto }} ({{ email.remetente }})
+{% if email.anexos %}📎 *Anexos:* {{ email.anexos | join(', ') }}{% endif %}
+Resumo: {{ email.resumo }}
+Ação necessária: {{ email.acao }}
+{% if email.prazo %}Prazo final: {{ email.prazo }}{% endif %}
+{% if email.motivo %}Por que importa: {{ email.motivo }}{% endif %}
+
+{% endfor %}
+{% endif %}
+{% if baixas %}
+🟡 *PRIORIDADE BAIXA (ação opcional / acompanhamento)*
+{% for email in baixas %}
+{{ altas|length + medias|length + loop.index }}. {{ email.assunto }} ({{ email.remetente }})
+{% if email.anexos %}📎 *Anexos:* {{ email.anexos | join(', ') }}{% endif %}
+Resumo: {{ email.resumo }}
+Ação possível: {{ email.acao }}
+
+{% endfor %}
+{% endif %}
+{% if nenhumas %}
+✅ *Sem ação necessária (informativos / fluxo já resolvido)*
+{% for email in nenhumas %}
+- {{ email.assunto }} ({{ email.remetente }})
+{% endfor %}
+{% endif %}

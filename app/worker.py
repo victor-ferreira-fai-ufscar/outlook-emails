@@ -67,7 +67,7 @@ async def process_inbound_webhooks():
                         continue
 
                     if response_text == "__SEND_SUMMARY__":
-                        response_text = _build_summary_for_number(sender_number)
+                        response_text = await _build_summary_for_number(sender_number)
 
                     # Envia a resposta via Evolution API
                     send_whatsapp_via_evolution_api(message=response_text, number=sender_number)
