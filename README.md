@@ -54,6 +54,29 @@ Observacao: `docker-compose.yml` continua como alias de desenvolvimento para com
 - Microsoft Graph API (OAuth2)
 - Jinja2 para templates de mensagens (WhatsApp)
 
+## IA Local com Ollama
+
+Este projeto utiliza o Ollama para rodar modelos de linguagem localmente, garantindo privacidade e permitindo a sumarização de e-mails. O modelo padrão utilizado é o `gemma3:1b`.
+
+### Instalação do Ollama
+
+1. Acesse o site oficial do Ollama: [https://ollama.com/download](https://ollama.com/download)
+2. Baixe e instale a versão correspondente ao seu sistema operacional (Windows, macOS ou Linux).
+3. Após a instalação, verifique se o Ollama está em execução abrindo um terminal e digitando:
+   ```bash
+   ollama --version
+   ```
+
+### Baixando o modelo gemma3:1b
+
+Com o Ollama instalado, você precisa baixar o modelo utilizado pelo projeto. No terminal, execute o comando abaixo:
+
+```bash
+ollama run gemma3:1b
+```
+
+Este comando fará o download do modelo e o inicializará no seu ambiente local. Após o download concluir e o prompt do modelo aparecer, você pode sair digitando `/bye` ou pressionando `Ctrl+d`. O Ollama manterá o modelo disponível para uso da API.
+
 ## Pre-requisitos
 
 - Conta Microsoft 365
