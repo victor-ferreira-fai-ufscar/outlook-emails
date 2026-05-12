@@ -63,9 +63,10 @@ Este projeto utiliza o Ollama para rodar modelos de linguagem localmente, garant
 1. Acesse o site oficial do Ollama: [https://ollama.com/download](https://ollama.com/download)
 2. Baixe e instale a versão correspondente ao seu sistema operacional (Windows, macOS ou Linux).
 3. Após a instalação, verifique se o Ollama está em execução abrindo um terminal e digitando:
-   ```bash
-   ollama --version
-   ```
+
+```bash
+ollama --version
+```
 
 ### Baixando o modelo gemma3:1b
 
@@ -387,6 +388,7 @@ Para habilitar o inbound, configure na Evolution API o webhook do evento `messag
 O sistema possui um **scheduler interno** (`APScheduler`) que gerencia o envio automático dos resumos. Por padrão, os resumos são enviados às 08:00, mas cada usuário pode personalizar seu horário via comando `!agendar`.
 
 ### Alternativa: GitHub Actions
+
 Caso prefira um gatilho externo, o workflow em `.github/workflows/daily-summary.yml` continua disponível com:
 
 Workflow adicionado em `.github/workflows/daily-summary.yml` com:
