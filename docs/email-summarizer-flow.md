@@ -2,6 +2,8 @@
 
 Este documento descreve o fluxo inicial do protótipo de automação para leitura de e-mails, configuração via Microsoft Teams e envio de resumos/notificações.
 
+- Documentação do adaptive cards: <https://learn.microsoft.com/en-us/adaptive-cards/getting-started/bots>
+
 ```mermaid
 flowchart TD
     A([Start]) --> B[Autenticação]
