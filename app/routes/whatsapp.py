@@ -70,7 +70,7 @@ def _enforce_webhook_secret_if_configured(request: Request) -> None:
         )
 
 
-async def _build_summary_for_number(number: str) -> str:
+async def _build_summary_for_number(number: str, window_hours: int | None = None) -> str:
     user_id = get_user_id_by_whatsapp_number(number)
     if not user_id:
         return (
@@ -81,9 +81,12 @@ async def _build_summary_for_number(number: str) -> str:
     user_settings = get_user_settings(user_id)
     max_items = int(user_settings.get("max_emails_in_summary", SUMMARY_TOP_N))
     include_read = bool(user_settings.get("include_read_emails", False))
+    
+    hours = window_hours if window_hours is not None else SUMMARY_WINDOW_HOURS
+    
     emails = fetch_unread_inbox_emails(
         access_token=access_token,
-        window_hours=SUMMARY_WINDOW_HOURS,
+        window_hours=hours,
         max_items=max_items,
         include_read=include_read,
     )
@@ -167,8 +170,14 @@ def _command_response(command: str, sender_number: str) -> str | None:
         subject = latest_email.get("subject") or "(sem assunto)"
         return jinja_env.get_template("whatsapp_ultimo_email.j2").render(subject=subject).strip()
 
-    if normalized in {"resumo", "resumo agora", "summary now"}:
-        return "__SEND_SUMMARY__"
+    if normalized in {"resumo", "resumo hoje", "resumo agora", "summary now"}:
+        return "__SEND_SUMMARY_24__"
+
+    if normalized in {"resumo ontem"}:
+        return "__SEND_SUMMARY_48__"
+
+    if normalized in {"resumo 7d", "resumo semanal"}:
+        return "__SEND_SUMMARY_168__"
 
     if normalized.startswith("agendar"):
         parts = normalized.split()
@@ -220,8 +229,21 @@ async def whatsapp_webhook(payload: dict, request: Request) -> dict:
     if not response_text:
         return {"status": "ok", "ignored": True, "reason": "not_a_command"}
 
-    if response_text == "__SEND_SUMMARY__":
-        response_text = await _build_summary_for_number(sender_number)
+    if response_text in ["__SEND_SUMMARY_24__", "__SEND_SUMMARY_48__", "__SEND_SUMMARY_168__", "__SEND_SUMMARY__"]:
+        # Envia feedback imediato para o usuário não achar que o bot travou
+        send_whatsapp_via_evolution_api(
+            message="⏳ *Estou buscando seus e-mails e gerando o resumo com IA...*\n_Isso pode levar alguns segundos, por favor aguarde._", 
+            number=sender_number
+        )
+        
+        if response_text == "__SEND_SUMMARY_24__":
+            response_text = await _build_summary_for_number(sender_number, 24)
+        elif response_text == "__SEND_SUMMARY_48__":
+            response_text = await _build_summary_for_number(sender_number, 48)
+        elif response_text == "__SEND_SUMMARY_168__":
+            response_text = await _build_summary_for_number(sender_number, 168)
+        elif response_text == "__SEND_SUMMARY__": # fallback retrocompatibilidade
+            response_text = await _build_summary_for_number(sender_number)
 
     send_whatsapp_via_evolution_api(message=response_text, number=sender_number)
     return {"status": "ok", "command": text.lower(), "recipient": sender_number}
