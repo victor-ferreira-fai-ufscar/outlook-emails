@@ -5,6 +5,7 @@ services:
     plan: free
     region: oregon
     branch: main
+    autoDeploy: false
     buildCommand: |
       uv sync --frozen
     startCommand: |
