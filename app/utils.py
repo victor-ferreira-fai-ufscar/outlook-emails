@@ -27,6 +27,7 @@ from app.config import (
     SUPABASE_ENABLED,
 )
 from app.supabase_client import get_supabase_client
+from app.security import encrypt_data, decrypt_data
 
 
 def authority_url() -> str:
@@ -42,22 +43,35 @@ def sessions_dir() -> Path:
 
 
 def write_session_file(file_name: str, payload: dict[str, Any]) -> None:
-    """Salva dados de sessao em arquivo JSON local."""
+    """Salva dados de sessao em arquivo JSON local (criptografado)."""
     file_path = sessions_dir() / file_name
+    
+    # Criptografa o JSON antes de salvar
+    json_str = json.dumps(payload, indent=2, ensure_ascii=False)
+    encrypted_payload = encrypt_data(json_str)
+    
     with file_path.open("w", encoding="utf-8") as fp:
-        json.dump(payload, fp, indent=2, ensure_ascii=False)
+        fp.write(encrypted_payload)
 
     _sync_session_to_supabase(file_name=file_name, payload=payload)
 
 
 def read_session_file(file_name: str) -> dict[str, Any] | None:
-    """Le dados de sessao de arquivo JSON local."""
+    """Le dados de sessao de arquivo JSON local (descriptografado)."""
     file_path = sessions_dir() / file_name
     if not file_path.exists():
         return _read_session_from_supabase(file_name=file_name)
 
     with file_path.open("r", encoding="utf-8") as fp:
-        return json.load(fp)
+        encrypted_content = fp.read()
+        
+    try:
+        # Se for um JSON válido (não criptografado), retorna ele (migração)
+        return json.loads(encrypted_content)
+    except json.JSONDecodeError:
+        # Caso contrário, tenta descriptografar
+        decrypted_data = decrypt_data(encrypted_content)
+        return decrypted_data if isinstance(decrypted_data, dict) else {}
 
 
 def _refresh_session_access_token(
@@ -382,48 +396,36 @@ def send_whatsapp_via_evolution_api(
 
 
 def save_profile_json(profile_data: dict[str, Any]) -> str:
-    """Salva snapshot do perfil em arquivo JSON em data/."""
-    output_dir = Path("data")
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    user_id = profile_data.get("id", "unknown-user")
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    output_path = output_dir / f"outlook-profile-{user_id}-{timestamp}.json"
-
-    with output_path.open("w", encoding="utf-8") as fp:
-        json.dump(profile_data, fp, indent=2, ensure_ascii=False)
-
-    _sync_profile_to_supabase(
-        user_id=user_id,
-        path=str(output_path),
-        payload=profile_data,
-    )
-
-    return str(output_path)
+    """Retorna dados do perfil sem salvar em disco (Processamento Efêmero)."""
+    # Removido salvamento em disco e Supabase para privacidade total.
+    return "snapshot-disabled-for-privacy"
 
 
 def _sync_session_to_supabase(file_name: str, payload: dict[str, Any]) -> None:
-    """Sincroniza sessão em Supabase sem interromper fluxo local."""
+    """Sincroniza sessão em Supabase de forma criptografada."""
     if not SUPABASE_ENABLED:
         return
 
     try:
+        # Criptografa o payload antes de enviar para nuvem
+        json_str = json.dumps(payload, ensure_ascii=False)
+        encrypted_payload = {"encrypted_data": encrypt_data(json_str)}
+
         client = get_supabase_client()
         client.table("sessions").upsert(
             {
                 "file_name": file_name,
-                "payload": payload,
+                "payload": encrypted_payload,
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             },
             on_conflict="file_name",
         ).execute()
     except Exception:
-        # Mantém operação local mesmo se Supabase estiver indisponível.
         return
 
 
 def _read_session_from_supabase(file_name: str) -> dict[str, Any] | None:
-    """Busca sessão no Supabase quando arquivo local não existe."""
+    """Busca sessão no Supabase e descriptografa."""
     if not SUPABASE_ENABLED:
         return None
 
@@ -439,28 +441,20 @@ def _read_session_from_supabase(file_name: str) -> dict[str, Any] | None:
         rows = response.data or []
         if not rows:
             return None
-        return rows[0].get("payload")
+        
+        payload = rows[0].get("payload")
+        if isinstance(payload, dict) and "encrypted_data" in payload:
+            decrypted_str = decrypt_data(payload["encrypted_data"])
+            return json.loads(decrypted_str)
+        
+        return payload # Migração: se não estiver criptografado
     except Exception:
         return None
 
 
 def _sync_profile_to_supabase(user_id: str, path: str, payload: dict[str, Any]) -> None:
-    """Sincroniza snapshot de perfil em Supabase sem quebrar execução local."""
-    if not SUPABASE_ENABLED:
-        return
-
-    try:
-        client = get_supabase_client()
-        client.table("profiles").insert(
-            {
-                "user_id": user_id,
-                "path": path,
-                "payload": payload,
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            }
-        ).execute()
-    except Exception:
-        return
+    """Desativado para privacidade total."""
+    return
 
 
 def get_local_access_token(request) -> str:

@@ -66,7 +66,13 @@ async def process_inbound_webhooks():
                         _delete_record(client, record_id)
                         continue
 
-                    if response_text == "__SEND_SUMMARY__":
+                    if response_text == "__SEND_SUMMARY_24__":
+                        response_text = await _build_summary_for_number(sender_number, 24)
+                    elif response_text == "__SEND_SUMMARY_48__":
+                        response_text = await _build_summary_for_number(sender_number, 48)
+                    elif response_text == "__SEND_SUMMARY_168__":
+                        response_text = await _build_summary_for_number(sender_number, 168)
+                    elif response_text == "__SEND_SUMMARY__":
                         response_text = await _build_summary_for_number(sender_number)
 
                     # Envia a resposta via Evolution API
