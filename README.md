@@ -401,28 +401,30 @@ Secrets esperados no GitHub:
 - `DAILY_SUMMARY_URL` (ex.: `https://seu-backend.onrender.com/notifications/daily-summary`)
 - `NOTIFICATIONS_AUTOMATION_TOKEN`
 
-## Bot no Teams (fase inicial)
+## Integração com Microsoft Teams (Adaptive Cards)
 
-Esta base ja inclui um modulo inicial para bot em FastAPI, preparado para evoluir para o fluxo Teams sem criar outro backend.
+O fluxo de interação pelo Microsoft Teams e WhatsApp permite a configuração ágil do assistente, suportando inclusive interfaces ricas (Adaptive Cards no Teams). 
 
-Comandos iniciais suportados no webhook:
+O fluxo implementado prevê:
+1. Autenticação unificada vinculando sua conta de chat ao Outlook.
+2. Configuração rápida via painéis/comandos interativos.
+3. Agendamentos dinâmicos (Resumo diário, X dias atrás, semanal).
+4. Execução sob demanda (`!resumo hoje`, `!resumo ontem`).
 
-- `ajuda`
-- `login`
-- `status`
-- `logout`
+Consulte o detalhamento do fluxo em `docs/email-summarizer-flow.md`.
 
-Eventos aceitos no webhook:
+A segurança base do webhook do Bot inclui:
+- `BOT_REQUIRE_AUTH=true` exige cabeçalho `Authorization: Bearer <BOT_BEARER_TOKEN>`.
+- Validação estrita do canal configurado em `BOT_ALLOWED_CHANNEL`.
 
-- `message`
-- `conversationUpdate` (retorna mensagem de boas-vindas)
+## Segurança e Privacidade (Privacy-First)
 
-Seguranca do webhook:
+Este projeto implementa um modelo rigoroso de privacidade (Zero Retention Data), garantindo que dados sensíveis não fiquem expostos ou persistidos de forma vulnerável:
 
-- Se `BOT_REQUIRE_AUTH=true`, o endpoint exige `Authorization: Bearer <BOT_BEARER_TOKEN>`.
-- Se `channelId` vier no payload e for diferente de `BOT_ALLOWED_CHANNEL`, a requisicao e rejeitada.
+- **Criptografia em Repouso (AES-256)**: Os tokens de acesso e de atualização do Microsoft Graph são fortemente criptografados no banco de dados. Apenas o sistema de backend possui a chave (`SESSION_SECRET_KEY`) para operá-los em tempo de execução.
+- **Processamento Efêmero na RAM**: Todo o conteúdo dos e-mails baixados e os respectivos resumos da IA existem **apenas na memória volátil**. O sistema atua como um "quadro branco", apagando todo o contexto imediatamente após enviar a notificação no chat. Nada de dados crus no BD.
 
-Proximo passo recomendado: conectar esse endpoint ao Bot Framework e persistir estado de conversa em banco (Supabase Postgres) ou cache dedicado.
+Saiba mais como protegemos seus dados lendo nossa [Explicação de Segurança e Privacidade](docs/backend-security-flow.md).
 
 ## Deploy 24/7 (Render)
 
